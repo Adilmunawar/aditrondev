@@ -1,6 +1,8 @@
 
 import { useState } from "react";
-import { Send, Paperclip, Smile, Users } from "lucide-react";
+import { Send, Paperclip, Smile, Users, Search } from "lucide-react";
+import data from '@emoji-mart/data'
+import Picker from '@emoji-mart/react'
 
 interface Message {
   id: number;
@@ -20,31 +22,32 @@ interface RecentChat {
 
 export const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: "Hey! Welcome to Aditron!", sent: false, timestamp: new Date() },
-    { id: 2, text: "Thanks! Love the design!", sent: true, timestamp: new Date() },
+    { id: 1, text: "Hey! Welcome to Aditron! 👋", sent: false, timestamp: new Date() },
+    { id: 2, text: "Thanks! Love the design! ❤️", sent: true, timestamp: new Date() },
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [selectedChat, setSelectedChat] = useState<number | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Mock data for recent chats
   const recentChats: RecentChat[] = [
     {
       id: 1,
       name: "John Doe",
-      lastMessage: "See you tomorrow!",
+      lastMessage: "See you tomorrow! 👋",
       timestamp: new Date(),
       unreadCount: 3
     },
     {
       id: 2,
       name: "Team Aditron",
-      lastMessage: "Great work everyone!",
+      lastMessage: "Great work everyone! 🎉",
       timestamp: new Date(Date.now() - 3600000),
     },
     {
       id: 3,
       name: "Alice Johnson",
-      lastMessage: "The meeting is confirmed",
+      lastMessage: "The meeting is confirmed ✅",
       timestamp: new Date(Date.now() - 7200000),
     }
   ];
@@ -65,6 +68,11 @@ export const Chat = () => {
     setNewMessage("");
   };
 
+  const addEmoji = (emoji: any) => {
+    setNewMessage(prev => prev + emoji.native);
+    setShowEmojiPicker(false);
+  };
+
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat("default", {
       hour: "numeric",
@@ -73,11 +81,18 @@ export const Chat = () => {
   };
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex bg-background rounded-xl overflow-hidden shadow-lg">
       {/* Recent Chats Sidebar */}
-      <div className="w-80 border-r flex flex-col">
+      <div className="w-80 border-r flex flex-col bg-card">
         <div className="p-4 border-b bg-card/50 backdrop-blur-sm">
-          <h2 className="font-semibold">Recent Chats</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search chats"
+              className="w-full pl-10 p-2 rounded-full bg-secondary border-none focus:ring-2 focus:ring-primary text-sm"
+            />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {recentChats.map((chat) => (
@@ -111,7 +126,7 @@ export const Chat = () => {
                     {chat.lastMessage}
                   </p>
                   {chat.unreadCount && (
-                    <span className="ml-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+                    <span className="ml-2 bg-primary text-primary-foreground text-xs px-2.5 py-1 rounded-full">
                       {chat.unreadCount}
                     </span>
                   )}
@@ -123,9 +138,14 @@ export const Chat = () => {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-secondary/30">
         <div className="p-4 border-b bg-card/50 backdrop-blur-sm">
-          <h2 className="font-semibold">Aditron Chat</h2>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-primary" />
+            </div>
+            <h2 className="font-semibold">Aditron Chat</h2>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -156,12 +176,20 @@ export const Chat = () => {
               placeholder="Type a message..."
               className="flex-1 bg-secondary p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
             />
-            <button
-              type="button"
-              className="p-2 hover:bg-secondary rounded-full transition-colors"
-            >
-              <Smile className="w-5 h-5 text-muted-foreground" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-2 hover:bg-secondary rounded-full transition-colors"
+              >
+                <Smile className="w-5 h-5 text-muted-foreground" />
+              </button>
+              {showEmojiPicker && (
+                <div className="absolute bottom-full right-0 mb-2">
+                  <Picker data={data} onEmojiSelect={addEmoji} />
+                </div>
+              )}
+            </div>
             <button
               type="submit"
               className="p-2 bg-primary hover:bg-primary-hover text-primary-foreground rounded-full transition-colors"

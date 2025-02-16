@@ -1,12 +1,20 @@
 
 import { Layout } from "@/components/Layout";
-import { Chat } from "@/components/Chat";
+import { SplashScreen } from "@/components/SplashScreen";
+import { useState } from "react";
 
 const Index = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
-    <Layout>
-      <Chat />
-    </Layout>
+    <>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      <Layout>
+        <div className="h-full rounded-xl overflow-hidden shadow-lg">
+          {/* The Layout component will render the appropriate panel */}
+        </div>
+      </Layout>
+    </>
   );
 };
 
