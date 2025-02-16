@@ -1,13 +1,19 @@
 
 import { MessageCircle, Users, Settings, Menu, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Chat } from "./Chat";
+import { ContactList } from "./ContactList";
+import { ProfileSettings } from "./ProfileSettings";
+import { GroupCreation } from "./GroupCreation";
+
+type Panel = "chat" | "contacts" | "settings" | "group";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDark, setIsDark] = useState(false);
+  const [activePanel, setActivePanel] = useState<Panel>("chat");
 
   useEffect(() => {
-    // Check if user has a theme preference
     const isDarkMode = localStorage.getItem("theme") === "dark" ||
       (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
     setIsDark(isDarkMode);
@@ -21,6 +27,19 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     document.documentElement.classList.toggle("dark", newTheme);
   };
 
+  const renderPanel = () => {
+    switch (activePanel) {
+      case "contacts":
+        return <ContactList />;
+      case "settings":
+        return <ProfileSettings />;
+      case "group":
+        return <GroupCreation />;
+      default:
+        return <Chat />;
+    }
+  };
+
   return (
     <div className="h-screen flex overflow-hidden">
       {/* Sidebar */}
@@ -32,13 +51,28 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <Menu className="w-6 h-6 text-foreground" />
         </button>
         <nav className="flex flex-col gap-6">
-          <button className="p-2 hover:bg-secondary rounded-lg transition-colors">
+          <button 
+            onClick={() => setActivePanel("chat")}
+            className={`p-2 hover:bg-secondary rounded-lg transition-colors ${
+              activePanel === "chat" ? "bg-secondary" : ""
+            }`}
+          >
             <MessageCircle className="w-6 h-6 text-primary" />
           </button>
-          <button className="p-2 hover:bg-secondary rounded-lg transition-colors">
+          <button 
+            onClick={() => setActivePanel("contacts")}
+            className={`p-2 hover:bg-secondary rounded-lg transition-colors ${
+              activePanel === "contacts" ? "bg-secondary" : ""
+            }`}
+          >
             <Users className="w-6 h-6 text-foreground" />
           </button>
-          <button className="p-2 hover:bg-secondary rounded-lg transition-colors">
+          <button 
+            onClick={() => setActivePanel("settings")}
+            className={`p-2 hover:bg-secondary rounded-lg transition-colors ${
+              activePanel === "settings" ? "bg-secondary" : ""
+            }`}
+          >
             <Settings className="w-6 h-6 text-foreground" />
           </button>
           <button 
@@ -56,7 +90,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Main Content */}
       <main className="flex-1 bg-background overflow-hidden">
-        {children}
+        {renderPanel()}
       </main>
     </div>
   );
