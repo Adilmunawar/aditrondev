@@ -72,7 +72,7 @@ export const GroupCreation = () => {
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary" />
+                  <Users className="w-5 h-5 text-primary" />
                 </div>
                 <span className="font-medium">{contact.name}</span>
               </div>
