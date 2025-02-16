@@ -20,32 +20,32 @@ export default {
     },
     extend: {
       colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
         primary: {
-          DEFAULT: "#0EA5E9",
-          foreground: "#FFFFFF",
-          hover: "#0284C7"
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
+          hover: "var(--primary-hover)"
         },
         secondary: {
-          DEFAULT: "#F1F5F9",
-          foreground: "#0F172A",
-          hover: "#E2E8F0"
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
+          hover: "var(--secondary-hover)"
         },
         accent: {
-          DEFAULT: "#D3E4FD",
-          foreground: "#1E40AF"
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)"
         },
         muted: {
-          DEFAULT: "#F8FAFC",
-          foreground: "#64748B"
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)"
         },
         destructive: {
-          DEFAULT: "#EF4444",
-          foreground: "#FFFFFF"
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)"
         },
       },
       fontFamily: {

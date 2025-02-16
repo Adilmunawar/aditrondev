@@ -9,33 +9,49 @@
   :root {
     --background: #FFFFFF;
     --foreground: #0F172A;
-
     --card: #FFFFFF;
     --card-foreground: #0F172A;
-
     --popover: #FFFFFF;
     --popover-foreground: #0F172A;
-
     --primary: #0EA5E9;
     --primary-foreground: #FFFFFF;
-
+    --primary-hover: #0284C7;
     --secondary: #F1F5F9;
     --secondary-foreground: #0F172A;
-
+    --secondary-hover: #E2E8F0;
     --muted: #F8FAFC;
     --muted-foreground: #64748B;
-
     --accent: #D3E4FD;
     --accent-foreground: #1E40AF;
-
     --destructive: #EF4444;
     --destructive-foreground: #FFFFFF;
-
     --border: #E2E8F0;
     --input: #E2E8F0;
     --ring: #0EA5E9;
+  }
 
-    --radius: 0.5rem;
+  .dark {
+    --background: #0F172A;
+    --foreground: #FFFFFF;
+    --card: #1E293B;
+    --card-foreground: #FFFFFF;
+    --popover: #1E293B;
+    --popover-foreground: #FFFFFF;
+    --primary: #0EA5E9;
+    --primary-foreground: #FFFFFF;
+    --primary-hover: #0284C7;
+    --secondary: #1E293B;
+    --secondary-foreground: #FFFFFF;
+    --secondary-hover: #334155;
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+    --accent: #1E293B;
+    --accent-foreground: #FFFFFF;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    --border: #334155;
+    --input: #334155;
+    --ring: #0EA5E9;
   }
 
   * {
@@ -47,7 +63,7 @@
   }
 
   .glass {
-    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-lg;
+    @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-lg dark:bg-black/20;
   }
 
   .message-bubble {

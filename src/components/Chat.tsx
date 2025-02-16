@@ -35,7 +35,7 @@ export const Chat = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Chat Header */}
-      <div className="p-4 border-b bg-white/50 backdrop-blur-sm">
+      <div className="p-4 border-b bg-card/50 backdrop-blur-sm">
         <h2 className="font-semibold">Aditron Chat</h2>
       </div>
 
@@ -54,30 +54,30 @@ export const Chat = () => {
       </div>
 
       {/* Message Input */}
-      <form onSubmit={sendMessage} className="p-4 bg-white/50 backdrop-blur-sm border-t">
+      <form onSubmit={sendMessage} className="p-4 bg-card/50 backdrop-blur-sm border-t">
         <div className="flex items-center gap-2">
           <button
             type="button"
             className="p-2 hover:bg-secondary rounded-full transition-colors"
           >
-            <Paperclip className="w-5 h-5 text-gray-600" />
+            <Paperclip className="w-5 h-5 text-muted-foreground" />
           </button>
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 bg-secondary p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 bg-secondary p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
           />
           <button
             type="button"
             className="p-2 hover:bg-secondary rounded-full transition-colors"
           >
-            <Smile className="w-5 h-5 text-gray-600" />
+            <Smile className="w-5 h-5 text-muted-foreground" />
           </button>
           <button
             type="submit"
-            className="p-2 bg-primary hover:bg-primary-hover text-white rounded-full transition-colors"
+            className="p-2 bg-primary hover:bg-primary-hover text-primary-foreground rounded-full transition-colors"
           >
             <Send className="w-5 h-5" />
           </button>
