@@ -77,4 +77,8 @@
   .message-bubble-received {
     @apply bg-secondary text-secondary-foreground;
   }
+
+  .status-ring {
+    @apply relative before:absolute before:inset-[-2px] before:rounded-full before:bg-gradient-to-r before:from-primary before:to-accent before:animate-spin-slow before:z-0;
+  }
 }

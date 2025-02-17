@@ -85,6 +85,7 @@ export default {
         "fade-up": "fade-up 0.5s ease-out",
         "fade-down": "fade-down 0.5s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
+        "spin-slow": "spin 3s linear infinite",
       },
     },
   },

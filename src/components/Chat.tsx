@@ -18,6 +18,7 @@ interface RecentChat {
   timestamp: Date;
   unreadCount?: number;
   avatar?: string;
+  hasStatus?: boolean;
 }
 
 export const Chat = () => {
@@ -29,26 +30,31 @@ export const Chat = () => {
   const [selectedChat, setSelectedChat] = useState<number | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Mock data for recent chats
+  // Mock data for recent chats with status and profile pictures
   const recentChats: RecentChat[] = [
     {
       id: 1,
       name: "John Doe",
       lastMessage: "See you tomorrow! 👋",
       timestamp: new Date(),
-      unreadCount: 3
+      unreadCount: 3,
+      avatar: "https://images.unsplash.com/photo-1535268647677-300dbf3d78d1",
+      hasStatus: true
     },
     {
       id: 2,
       name: "Team Aditron",
       lastMessage: "Great work everyone! 🎉",
       timestamp: new Date(Date.now() - 3600000),
+      avatar: "https://images.unsplash.com/photo-1581092795360-fd1ca04f0952",
+      hasStatus: true
     },
     {
       id: 3,
       name: "Alice Johnson",
       lastMessage: "The meeting is confirmed ✅",
       timestamp: new Date(Date.now() - 7200000),
+      avatar: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158"
     }
   ];
 
@@ -103,17 +109,19 @@ export const Chat = () => {
                 selectedChat === chat.id ? "bg-secondary" : ""
               }`}
             >
-              {chat.avatar ? (
-                <img
-                  src={chat.avatar}
-                  alt={chat.name}
-                  className="w-12 h-12 rounded-full"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-primary" />
-                </div>
-              )}
+              <div className={`relative ${chat.hasStatus ? 'status-ring' : ''}`}>
+                {chat.avatar ? (
+                  <img
+                    src={chat.avatar}
+                    alt={chat.name}
+                    className="w-12 h-12 rounded-full relative z-10 object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center relative z-10">
+                    <Users className="w-6 h-6 text-primary" />
+                  </div>
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start">
                   <h3 className="font-medium truncate">{chat.name}</h3>
@@ -165,7 +173,7 @@ export const Chat = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="p-2 hover:bg-secondary rounded-full transition-colors"
+              className="p-2 hover:bg-secondary rounded-full transition-all duration-300 transform hover:scale-110"
             >
               <Paperclip className="w-5 h-5 text-muted-foreground" />
             </button>
@@ -180,7 +188,7 @@ export const Chat = () => {
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="p-2 hover:bg-secondary rounded-full transition-colors"
+                className="p-2 hover:bg-secondary rounded-full transition-all duration-300 transform hover:scale-110"
               >
                 <Smile className="w-5 h-5 text-muted-foreground" />
               </button>
@@ -192,7 +200,7 @@ export const Chat = () => {
             </div>
             <button
               type="submit"
-              className="p-2 bg-primary hover:bg-primary-hover text-primary-foreground rounded-full transition-colors"
+              className="p-2 bg-primary hover:bg-primary-hover text-primary-foreground rounded-full transition-all duration-300 transform hover:scale-110"
             >
               <Send className="w-5 h-5" />
             </button>
