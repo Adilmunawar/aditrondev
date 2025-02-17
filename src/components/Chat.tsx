@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Send, Paperclip, Smile, Users, Search } from "lucide-react";
 import data from '@emoji-mart/data'
@@ -86,6 +85,8 @@ export const Chat = () => {
     }).format(date);
   };
 
+  const selectedChatDetails = recentChats.find(chat => chat.id === selectedChat);
+
   return (
     <div className="h-full flex bg-background rounded-xl overflow-hidden shadow-lg">
       {/* Recent Chats Sidebar */}
@@ -146,17 +147,36 @@ export const Chat = () => {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-secondary/30">
+      <div className="flex-1 flex flex-col">
         <div className="p-4 border-b bg-card/50 backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary" />
+            <div className={`relative ${selectedChatDetails?.hasStatus ? 'status-ring' : ''}`}>
+              {selectedChatDetails?.avatar ? (
+                <img
+                  src={selectedChatDetails.avatar}
+                  alt={selectedChatDetails.name}
+                  className="w-10 h-10 rounded-full relative z-10 object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center relative z-10">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+              )}
             </div>
-            <h2 className="font-semibold">Aditron Chat</h2>
+            <h2 className="font-semibold">
+              {selectedChatDetails ? selectedChatDetails.name : "Select a chat"}
+            </h2>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div 
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='20' fill='%23E2E8F0' opacity='0.2'%3E💬 💭 ✨%3C/text%3E%3C/svg%3E")`,
+            backgroundColor: 'var(--secondary)',
+            backgroundBlendMode: 'overlay'
+          }}
+        >
           {messages.map((message) => (
             <div
               key={message.id}
