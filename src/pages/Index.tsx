@@ -8,12 +8,15 @@ const Index = () => {
 
   return (
     <>
-      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-      <Layout>
-        <div className="h-full rounded-xl overflow-hidden shadow-lg">
-          {/* The Layout component will render the appropriate panel */}
-        </div>
-      </Layout>
+      {showSplash ? (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      ) : (
+        <Layout>
+          <div className="h-full rounded-xl overflow-hidden shadow-lg">
+            {/* The Layout component will render the appropriate panel */}
+          </div>
+        </Layout>
+      )}
     </>
   );
 };

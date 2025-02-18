@@ -62,11 +62,20 @@ export const Chat = () => {
         selectedChat={selectedChat}
         onSelectChat={setSelectedChat}
       />
-      <div className="flex-1 flex flex-col">
-        <ChatHeader selectedChat={selectedChatDetails} />
-        <MessageList messages={messages} />
-        <MessageInput onSendMessage={handleSendMessage} />
-      </div>
+      {selectedChat ? (
+        <div className="flex-1 flex flex-col">
+          <ChatHeader selectedChat={selectedChatDetails} />
+          <MessageList messages={messages} />
+          <MessageInput onSendMessage={handleSendMessage} />
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center bg-secondary/50">
+          <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold text-primary">Welcome to Aditron</h1>
+            <p className="text-muted-foreground">Select a chat to start messaging</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
