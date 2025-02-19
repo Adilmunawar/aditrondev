@@ -1,56 +1,168 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Message, RecentChat } from "@/types/chat";
 import { ChatSidebar } from "./chat/ChatSidebar";
 import { ChatHeader } from "./chat/ChatHeader";
 import { MessageList } from "./chat/MessageList";
 import { MessageInput } from "./chat/MessageInput";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "./ui/use-toast";
 
 export const Chat = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: "Hey! Welcome to Aditron! 👋", sent: false, timestamp: new Date() },
-    { id: 2, text: "Thanks! Love the design! ❤️", sent: true, timestamp: new Date() },
-  ]);
-  const [selectedChat, setSelectedChat] = useState<number | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data for recent chats with status and profile pictures
-  const recentChats: RecentChat[] = [
-    {
-      id: 1,
-      name: "John Doe",
-      lastMessage: "See you tomorrow! 👋",
-      timestamp: new Date(),
-      unreadCount: 3,
-      avatar: "https://images.unsplash.com/photo-1535268647677-300dbf3d78d1",
-      hasStatus: true
-    },
-    {
-      id: 2,
-      name: "Team Aditron",
-      lastMessage: "Great work everyone! 🎉",
-      timestamp: new Date(Date.now() - 3600000),
-      avatar: "https://images.unsplash.com/photo-1581092795360-fd1ca04f0952",
-      hasStatus: true
-    },
-    {
-      id: 3,
-      name: "Alice Johnson",
-      lastMessage: "The meeting is confirmed ✅",
-      timestamp: new Date(Date.now() - 7200000),
-      avatar: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158"
+  // Fetch messages for selected chat
+  useEffect(() => {
+    if (!selectedChat) {
+      setMessages([]);
+      return;
     }
-  ];
 
-  const handleSendMessage = (text: string) => {
-    setMessages([
-      ...messages,
-      {
-        id: messages.length + 1,
-        text,
-        sent: true,
-        timestamp: new Date(),
-      },
-    ]);
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', selectedChat)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        toast({
+          title: "Error fetching messages",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setMessages(data.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sent: msg.sender_id === (supabase.auth.getUser()?.data.user?.id || ''),
+        timestamp: new Date(msg.created_at),
+        sender_id: msg.sender_id,
+        chat_id: msg.chat_id,
+        is_sticker: msg.is_sticker,
+        sticker_url: msg.sticker_url,
+      })));
+    };
+
+    fetchMessages();
+
+    // Subscribe to new messages
+    const channel = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${selectedChat}`,
+        },
+        (payload) => {
+          const newMessage = payload.new as any;
+          setMessages(prev => [...prev, {
+            id: newMessage.id,
+            content: newMessage.content,
+            sent: newMessage.sender_id === (supabase.auth.getUser()?.data.user?.id || ''),
+            timestamp: new Date(newMessage.created_at),
+            sender_id: newMessage.sender_id,
+            chat_id: newMessage.chat_id,
+            is_sticker: newMessage.is_sticker,
+            sticker_url: newMessage.sticker_url,
+          }]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedChat]);
+
+  // Fetch recent chats
+  useEffect(() => {
+    const fetchChats = async () => {
+      const { data: chats, error } = await supabase
+        .from('chats')
+        .select(`
+          *,
+          chat_participants(profile_id),
+          messages(
+            content,
+            created_at,
+            sender_id
+          )
+        `)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        toast({
+          title: "Error fetching chats",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formattedChats: RecentChat[] = chats.map(chat => ({
+        id: chat.id,
+        name: chat.name || 'Chat',
+        lastMessage: chat.messages?.[0]?.content || '',
+        timestamp: new Date(chat.messages?.[0]?.created_at || chat.updated_at),
+        is_group: chat.is_group,
+      }));
+
+      setRecentChats(formattedChats);
+      setIsLoading(false);
+    };
+
+    fetchChats();
+
+    // Subscribe to chat updates
+    const channel = supabase
+      .channel('chats')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chats',
+        },
+        () => {
+          fetchChats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleSendMessage = async (text: string) => {
+    if (!selectedChat || !text.trim()) return;
+
+    const newMessage = {
+      content: text,
+      chat_id: selectedChat,
+      sender_id: supabase.auth.getUser()?.data.user?.id,
+    };
+
+    const { error } = await supabase
+      .from('messages')
+      .insert(newMessage);
+
+    if (error) {
+      toast({
+        title: "Error sending message",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const selectedChatDetails = recentChats.find(chat => chat.id === selectedChat);
