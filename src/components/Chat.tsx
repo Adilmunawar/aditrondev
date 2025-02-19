@@ -37,10 +37,13 @@ export const Chat = () => {
         return;
       }
 
+      const currentUser = supabase.auth.getSession();
+      const userId = (await currentUser).data.session?.user.id;
+
       setMessages(data.map(msg => ({
         id: msg.id,
         content: msg.content,
-        sent: msg.sender_id === (supabase.auth.getUser()?.data.user?.id || ''),
+        sent: msg.sender_id === userId,
         timestamp: new Date(msg.created_at),
         sender_id: msg.sender_id,
         chat_id: msg.chat_id,
@@ -62,12 +65,15 @@ export const Chat = () => {
           table: 'messages',
           filter: `chat_id=eq.${selectedChat}`,
         },
-        (payload) => {
+        async (payload) => {
           const newMessage = payload.new as any;
+          const currentUser = supabase.auth.getSession();
+          const userId = (await currentUser).data.session?.user.id;
+
           setMessages(prev => [...prev, {
             id: newMessage.id,
             content: newMessage.content,
-            sent: newMessage.sender_id === (supabase.auth.getUser()?.data.user?.id || ''),
+            sent: newMessage.sender_id === userId,
             timestamp: new Date(newMessage.created_at),
             sender_id: newMessage.sender_id,
             chat_id: newMessage.chat_id,
@@ -146,10 +152,13 @@ export const Chat = () => {
   const handleSendMessage = async (text: string) => {
     if (!selectedChat || !text.trim()) return;
 
+    const currentUser = supabase.auth.getSession();
+    const userId = (await currentUser).data.session?.user.id;
+
     const newMessage = {
       content: text,
       chat_id: selectedChat,
-      sender_id: supabase.auth.getUser()?.data.user?.id,
+      sender_id: userId,
     };
 
     const { error } = await supabase

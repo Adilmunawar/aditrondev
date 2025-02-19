@@ -4,8 +4,8 @@ import { RecentChat } from "@/types/chat";
 
 interface ChatSidebarProps {
   recentChats: RecentChat[];
-  selectedChat: number | null;
-  onSelectChat: (chatId: number) => void;
+  selectedChat: string | null;
+  onSelectChat: (chatId: string) => void;
 }
 
 export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat }: ChatSidebarProps) => {

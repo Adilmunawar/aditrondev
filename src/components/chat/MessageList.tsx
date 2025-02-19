@@ -22,7 +22,15 @@ export const MessageList = ({ messages }: MessageListProps) => {
             message.sent ? "message-bubble-sent" : "message-bubble-received"
           }`}
         >
-          {message.text}
+          {message.is_sticker ? (
+            <img 
+              src={message.sticker_url} 
+              alt="Sticker" 
+              className="max-w-[120px] max-h-[120px] object-contain"
+            />
+          ) : (
+            message.content
+          )}
         </div>
       ))}
     </div>
