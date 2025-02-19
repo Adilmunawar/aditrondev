@@ -50,6 +50,8 @@ export type Database = {
           created_at: string | null
           id: string
           is_group: boolean | null
+          last_message_at: string | null
+          last_message_preview: string | null
           name: string | null
           updated_at: string | null
         }
@@ -57,6 +59,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_group?: boolean | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
           name?: string | null
           updated_at?: string | null
         }
@@ -64,6 +68,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_group?: boolean | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
           name?: string | null
           updated_at?: string | null
         }
