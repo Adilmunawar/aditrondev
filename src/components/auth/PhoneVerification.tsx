@@ -139,10 +139,11 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
                 maxLength={6}
                 render={({ slots }) => (
                   <InputOTPGroup className="gap-2">
-                    {slots.map((slot, index) => (
+                    {slots.map((slot, idx) => (
                       <InputOTPSlot
-                        key={index}
+                        key={idx}
                         {...slot}
+                        index={idx}
                         className="w-12 h-12 text-2xl"
                       />
                     ))}
