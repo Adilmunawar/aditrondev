@@ -167,6 +167,11 @@ export type Database = {
           id: string
           is_online: boolean | null
           last_seen: string | null
+          onboarding_completed: boolean | null
+          otp_secret: string | null
+          otp_valid_until: string | null
+          phone_number: string | null
+          phone_verified: boolean | null
           profile_visibility: string | null
           status: string | null
           status_privacy: string | null
@@ -180,6 +185,11 @@ export type Database = {
           id: string
           is_online?: boolean | null
           last_seen?: string | null
+          onboarding_completed?: boolean | null
+          otp_secret?: string | null
+          otp_valid_until?: string | null
+          phone_number?: string | null
+          phone_verified?: boolean | null
           profile_visibility?: string | null
           status?: string | null
           status_privacy?: string | null
@@ -193,6 +203,11 @@ export type Database = {
           id?: string
           is_online?: boolean | null
           last_seen?: string | null
+          onboarding_completed?: boolean | null
+          otp_secret?: string | null
+          otp_valid_until?: string | null
+          phone_number?: string | null
+          phone_verified?: boolean | null
           profile_visibility?: string | null
           status?: string | null
           status_privacy?: string | null
@@ -233,12 +248,56 @@ export type Database = {
           },
         ]
       }
+      user_permissions: {
+        Row: {
+          contacts_permission: boolean | null
+          created_at: string | null
+          id: string
+          location_permission: boolean | null
+          profile_id: string | null
+          storage_permission: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          contacts_permission?: boolean | null
+          created_at?: string | null
+          id?: string
+          location_permission?: boolean | null
+          profile_id?: string | null
+          storage_permission?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          contacts_permission?: boolean | null
+          created_at?: string | null
+          id?: string
+          location_permission?: boolean | null
+          profile_id?: string | null
+          storage_permission?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      verify_otp: {
+        Args: {
+          phone_number_input: string
+          otp_input: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
