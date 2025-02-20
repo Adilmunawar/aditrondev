@@ -1,5 +1,5 @@
 
-import { MessageCircle, Users, Settings, Menu, Sun, Moon } from "lucide-react";
+import { MessageCircle, Users, Settings, Menu, Sun, Moon, Users2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Chat } from "./Chat";
 import { ContactList } from "./ContactList";
@@ -41,55 +41,67 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden bg-gradient-to-br from-background to-secondary/30">
       {/* Sidebar */}
-      <div className={`${isSidebarOpen ? 'w-20' : 'w-0'} bg-card border-r transition-all duration-300 flex flex-col items-center py-6 gap-8`}>
+      <div 
+        className={`${
+          isSidebarOpen ? 'w-20' : 'w-0'
+        } bg-card/80 backdrop-blur-sm border-r border-border/50 transition-all duration-300 flex flex-col items-center py-6 gap-8`}
+      >
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="p-2 hover:bg-secondary rounded-lg transition-colors"
+          className="p-2 hover:bg-secondary rounded-lg transition-colors duration-200 hover:scale-110 transform"
         >
           <Menu className="w-6 h-6 text-foreground" />
         </button>
         <nav className="flex flex-col gap-6">
           <button 
             onClick={() => setActivePanel("chat")}
-            className={`p-2 hover:bg-secondary rounded-lg transition-colors ${
-              activePanel === "chat" ? "bg-secondary" : ""
+            className={`p-2 hover:bg-secondary rounded-lg transition-all duration-200 hover:scale-110 transform ${
+              activePanel === "chat" ? "bg-primary/10 text-primary" : ""
             }`}
           >
-            <MessageCircle className="w-6 h-6 text-primary" />
+            <MessageCircle className="w-6 h-6" />
           </button>
           <button 
             onClick={() => setActivePanel("contacts")}
-            className={`p-2 hover:bg-secondary rounded-lg transition-colors ${
-              activePanel === "contacts" ? "bg-secondary" : ""
+            className={`p-2 hover:bg-secondary rounded-lg transition-all duration-200 hover:scale-110 transform ${
+              activePanel === "contacts" ? "bg-primary/10 text-primary" : ""
             }`}
           >
-            <Users className="w-6 h-6 text-foreground" />
+            <Users className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setActivePanel("group")}
+            className={`p-2 hover:bg-secondary rounded-lg transition-all duration-200 hover:scale-110 transform ${
+              activePanel === "group" ? "bg-primary/10 text-primary" : ""
+            }`}
+          >
+            <Users2 className="w-6 h-6" />
           </button>
           <button 
             onClick={() => setActivePanel("settings")}
-            className={`p-2 hover:bg-secondary rounded-lg transition-colors ${
-              activePanel === "settings" ? "bg-secondary" : ""
+            className={`p-2 hover:bg-secondary rounded-lg transition-all duration-200 hover:scale-110 transform ${
+              activePanel === "settings" ? "bg-primary/10 text-primary" : ""
             }`}
           >
-            <Settings className="w-6 h-6 text-foreground" />
+            <Settings className="w-6 h-6" />
           </button>
           <button 
             onClick={toggleTheme}
-            className="p-2 hover:bg-secondary rounded-lg transition-colors"
+            className="p-2 hover:bg-secondary rounded-lg transition-all duration-200 hover:scale-110 transform mt-auto"
           >
             {isDark ? (
-              <Sun className="w-6 h-6 text-foreground" />
+              <Sun className="w-6 h-6 text-yellow-500" />
             ) : (
-              <Moon className="w-6 h-6 text-foreground" />
+              <Moon className="w-6 h-6 text-blue-500" />
             )}
           </button>
         </nav>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 bg-background overflow-hidden">
+      <main className="flex-1 bg-background/50 backdrop-blur-sm overflow-hidden rounded-l-xl transition-all duration-300">
         {renderPanel()}
       </main>
     </div>
