@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { Search, Users, Plus, Filter, Circle } from "lucide-react";
+import { Search, Users, Plus, Filter, Circle, Loader2 } from "lucide-react";
 import { RecentChat } from "@/types/chat";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,9 +9,10 @@ interface ChatSidebarProps {
   recentChats: RecentChat[];
   selectedChat: string | null;
   onSelectChat: (chatId: string) => void;
+  isLoading?: boolean;
 }
 
-export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat }: ChatSidebarProps) => {
+export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat, isLoading = false }: ChatSidebarProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredChats, setFilteredChats] = useState<RecentChat[]>(recentChats);
 
@@ -89,7 +89,12 @@ export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat }: ChatSid
         
         <TabsContent value="all" className="flex-1 overflow-hidden m-0">
           <ScrollArea className="h-full">
-            {filteredChats.length > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-40 p-4">
+                <Loader2 className="w-6 h-6 text-primary animate-spin mb-2" />
+                <p className="text-sm text-muted-foreground">Loading conversations...</p>
+              </div>
+            ) : filteredChats.length > 0 ? (
               filteredChats.map((chat) => (
                 <div
                   key={chat.id}
@@ -114,7 +119,6 @@ export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat }: ChatSid
                         )}
                       </div>
                     )}
-                    {/* Online indicator */}
                     <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-card rounded-full z-20" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -172,7 +176,6 @@ export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat }: ChatSid
                       selectedChat === chat.id ? "bg-secondary/50" : ""
                     }`}
                   >
-                    {/* Same chat item content as above */}
                     <div className="relative">
                       {chat.avatar ? (
                         <img
@@ -238,7 +241,6 @@ export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat }: ChatSid
                       selectedChat === chat.id ? "bg-secondary/50" : ""
                     }`}
                   >
-                    {/* Same content structure as above for groups */}
                     <div className="relative">
                       {chat.avatar ? (
                         <img
