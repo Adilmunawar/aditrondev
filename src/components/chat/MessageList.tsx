@@ -1,7 +1,7 @@
-
 import { Message } from "@/types/chat";
 import { useEffect, useRef, useState } from "react";
 import { CheckCheck, Clock, Download, Image } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface MessageListProps {
   messages: Message[];
@@ -12,11 +12,9 @@ export const MessageList = ({ messages }: MessageListProps) => {
   const [imagesLoaded, setImagesLoaded] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
-    // Auto-scroll to bottom when new messages arrive
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Group messages by date for better organization
   const groupedMessages = messages.reduce<{ date: string; messages: Message[] }[]>((acc, message) => {
     const messageDate = new Date(message.timestamp).toLocaleDateString();
     const existingGroup = acc.find(group => group.date === messageDate);
@@ -87,15 +85,12 @@ export const MessageList = ({ messages }: MessageListProps) => {
           </div>
           
           {group.messages.map((message, messageIndex) => {
-            // Check if this message is part of a sequence from same sender
             const prevMessage = messageIndex > 0 ? group.messages[messageIndex - 1] : null;
             const isSequence = prevMessage && prevMessage.sender_id === message.sender_id;
             
-            // Check if next message is from the same sender for bubble grouping
             const nextMessage = messageIndex < group.messages.length - 1 ? group.messages[messageIndex + 1] : null;
             const isNextFromSameSender = nextMessage && nextMessage.sender_id === message.sender_id;
             
-            // Determine border radius based on message position in sequence
             let borderRadiusClass = "";
             if (message.sent) {
               borderRadiusClass = isSequence 
