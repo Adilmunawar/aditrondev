@@ -1,301 +1,261 @@
-import { useState, useEffect } from "react";
-import { Search, Users, Plus, Filter, Circle, Loader2 } from "lucide-react";
-import { RecentChat } from "@/types/chat";
-import { Button } from "../ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface ChatSidebarProps {
+import { useState } from "react";
+import { RecentChat } from "@/types/chat";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { 
+  Search, X, PlusCircle, Settings, LogOut, Bell, Moon, Sun, 
+  Check, Archive, Pin, MoreVertical, UserPlus, Users, MessageSquare 
+} from "lucide-react";
+import { 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTheme } from "next-themes";
+
+export interface ChatSidebarProps {
   recentChats: RecentChat[];
   selectedChat: string | null;
   onSelectChat: (chatId: string) => void;
-  isLoading?: boolean;
+  isLoading: boolean;
+  onCreateChat: () => void; // Add this prop to the interface
 }
 
-export const ChatSidebar = ({ recentChats, selectedChat, onSelectChat, isLoading = false }: ChatSidebarProps) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredChats, setFilteredChats] = useState<RecentChat[]>(recentChats);
-
-  useEffect(() => {
-    if (searchTerm) {
-      setFilteredChats(
-        recentChats.filter((chat) =>
-          chat.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    } else {
-      setFilteredChats(recentChats);
-    }
-  }, [searchTerm, recentChats]);
-
-  const formatTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const oneDay = 86400000; // milliseconds in a day
-    
-    if (diff < oneDay && now.getDate() === date.getDate()) {
-      return new Intl.DateTimeFormat("default", {
-        hour: "numeric",
-        minute: "numeric",
-      }).format(date);
-    } else if (diff < oneDay * 7) {
-      return new Intl.DateTimeFormat("default", {
-        weekday: "short",
-      }).format(date);
-    } else {
-      return new Intl.DateTimeFormat("default", {
-        month: "short",
-        day: "numeric",
-      }).format(date);
-    }
-  };
-
-  const getLastMessagePreview = (message: string) => {
-    return message.length > 30 ? `${message.substring(0, 30)}...` : message;
+export const ChatSidebar = ({ 
+  recentChats, 
+  selectedChat, 
+  onSelectChat, 
+  isLoading,
+  onCreateChat 
+}: ChatSidebarProps) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const { theme, setTheme } = useTheme();
+  
+  const filteredChats = recentChats.filter(chat => 
+    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const getInitials = (name: string) => {
+    return name.split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
-    <div className="w-80 border-r flex flex-col bg-card/70 backdrop-blur-sm">
-      <div className="p-3 border-b bg-card/50 backdrop-blur-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold">Chats</h1>
-          <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Filter className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Plus className="w-4 h-4" />
+    <div className="w-80 border-r border-border flex flex-col">
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        {showSearch ? (
+          <div className="flex items-center w-full gap-2">
+            <Input
+              autoFocus
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="h-9"
+            />
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => {
+                setSearchQuery("");
+                setShowSearch(false);
+              }}
+            >
+              <X className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search conversations"
-            className="w-full pl-10 p-2 rounded-full bg-secondary border-none focus:ring-2 focus:ring-primary text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        ) : (
+          <>
+            <h2 className="font-bold text-xl">Chats</h2>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setShowSearch(true)}
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onCreateChat}
+              >
+                <PlusCircle className="h-5 w-5" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                    {theme === 'dark' ? (
+                      <Sun className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Moon className="mr-2 h-4 w-4" />
+                    )}
+                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Bell className="mr-2 h-4 w-4" />
+                    Notifications
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        )}
       </div>
       
-      <Tabs defaultValue="all" className="flex-1 flex flex-col">
-        <TabsList className="grid grid-cols-3 p-2">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="unread">Unread</TabsTrigger>
-          <TabsTrigger value="groups">Groups</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="all" className="flex-1 overflow-hidden m-0">
-          <ScrollArea className="h-full">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center h-40 p-4">
-                <Loader2 className="w-6 h-6 text-primary animate-spin mb-2" />
-                <p className="text-sm text-muted-foreground">Loading conversations...</p>
+      <div className="p-2 border-b border-border flex gap-1">
+        <Button 
+          variant={!searchQuery ? "default" : "outline"} 
+          size="sm" 
+          className="flex-1 h-8"
+          onClick={() => setSearchQuery("")}
+        >
+          <MessageSquare className="h-4 w-4 mr-1" />
+          All
+        </Button>
+        <Button 
+          variant={searchQuery === "group" ? "default" : "outline"} 
+          size="sm" 
+          className="flex-1 h-8"
+          onClick={() => setSearchQuery("group")}
+        >
+          <Users className="h-4 w-4 mr-1" />
+          Groups
+        </Button>
+        <Button 
+          variant={searchQuery === "unread" ? "default" : "outline"} 
+          size="sm" 
+          className="flex-1 h-8"
+          onClick={() => setSearchQuery("unread")}
+        >
+          <UserPlus className="h-4 w-4 mr-1" />
+          Unread
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        {isLoading ? (
+          <div className="p-4 space-y-4">
+            {Array(5).fill(0).map((_, idx) => (
+              <div key={idx} className="flex items-center gap-3">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
               </div>
-            ) : filteredChats.length > 0 ? (
-              filteredChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  onClick={() => onSelectChat(chat.id)}
-                  className={`flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors cursor-pointer ${
-                    selectedChat === chat.id ? "bg-secondary/50" : ""
-                  }`}
-                >
-                  <div className="relative">
-                    {chat.avatar ? (
-                      <img
-                        src={chat.avatar}
-                        alt={chat.name}
-                        className="w-12 h-12 rounded-full relative z-10 object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center relative z-10">
-                        {chat.is_group ? (
-                          <Users className="w-6 h-6 text-primary" />
-                        ) : (
-                          <Circle className="w-6 h-6 text-primary" />
-                        )}
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-card rounded-full z-20" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
-                      <h3 className={`font-medium truncate ${chat.unreadCount ? "font-semibold" : ""}`}>
-                        {chat.name}
-                      </h3>
-                      <span className={`text-xs ${chat.unreadCount ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                        {formatTime(chat.timestamp)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <p 
-                        className={`text-sm truncate ${
-                          chat.unreadCount ? "text-foreground font-medium" : "text-muted-foreground"
-                        }`}
+            ))}
+          </div>
+        ) : filteredChats.length === 0 ? (
+          <div className="text-center py-8 px-4 text-muted-foreground">
+            <MessageSquare className="mx-auto h-12 w-12 mb-3 opacity-20" />
+            <p>No chats found</p>
+            <Button
+              variant="link"
+              onClick={onCreateChat}
+              className="mt-2"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create new chat
+            </Button>
+          </div>
+        ) : (
+          <div className="p-2 space-y-1">
+            {filteredChats.map(chat => (
+              <button
+                key={chat.id}
+                onClick={() => onSelectChat(chat.id)}
+                className={`w-full p-2 rounded-lg text-left flex items-center gap-3 transition-all ${
+                  selectedChat === chat.id
+                    ? 'bg-primary/10 hover:bg-primary/15'
+                    : 'hover:bg-secondary'
+                }`}
+              >
+                <div className="relative">
+                  {chat.avatar ? (
+                    <Avatar>
+                      <AvatarImage src={chat.avatar} alt={chat.name} />
+                      <AvatarFallback>{getInitials(chat.name)}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <Avatar>
+                      <AvatarFallback 
+                        style={{ 
+                          backgroundColor: chat.color_theme || undefined 
+                        }}
                       >
-                        {chat.isTyping ? (
-                          <span className="text-primary animate-pulse">Typing...</span>
-                        ) : (
-                          getLastMessagePreview(chat.lastMessage)
-                        )}
-                      </p>
+                        {getInitials(chat.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  
+                  {chat.hasStatus && chat.status === 'online' && (
+                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background"></span>
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                    <span className="font-medium truncate">{chat.name}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-sm truncate">
+                    <span className={`truncate ${chat.unreadCount ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                      {chat.isTyping ? (
+                        <em className="text-primary">typing...</em>
+                      ) : (
+                        chat.lastMessage
+                      )}
+                    </span>
+                    
+                    <div className="flex items-center space-x-1 ml-1 shrink-0">
+                      {chat.is_pinned && <Pin className="h-3 w-3 text-muted-foreground" />}
+                      {chat.is_muted && <Bell className="h-3 w-3 text-muted-foreground" />}
                       {chat.unreadCount ? (
-                        <span className="ml-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full min-w-5 text-center">
-                          {chat.unreadCount}
+                        <span className="h-5 min-w-5 px-1 flex items-center justify-center rounded-full bg-primary text-white text-xs">
+                          {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
                         </span>
+                      ) : chat.delivery_status === 'read' ? (
+                        <Check className="h-4 w-4 text-primary" />
                       ) : null}
                     </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-                <p className="text-muted-foreground mb-2">No conversations found</p>
-                <Button size="sm" className="mt-2">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Start New Chat
-                </Button>
-              </div>
-            )}
-          </ScrollArea>
-        </TabsContent>
-        
-        <TabsContent value="unread" className="flex-1 overflow-hidden m-0">
-          <ScrollArea className="h-full">
-            {filteredChats.filter(chat => chat.unreadCount && chat.unreadCount > 0).length > 0 ? (
-              filteredChats
-                .filter(chat => chat.unreadCount && chat.unreadCount > 0)
-                .map((chat) => (
-                  <div
-                    key={chat.id}
-                    onClick={() => onSelectChat(chat.id)}
-                    className={`flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors cursor-pointer ${
-                      selectedChat === chat.id ? "bg-secondary/50" : ""
-                    }`}
-                  >
-                    <div className="relative">
-                      {chat.avatar ? (
-                        <img
-                          src={chat.avatar}
-                          alt={chat.name}
-                          className="w-12 h-12 rounded-full relative z-10 object-cover"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center relative z-10">
-                          {chat.is_group ? (
-                            <Users className="w-6 h-6 text-primary" />
-                          ) : (
-                            <Circle className="w-6 h-6 text-primary" />
-                          )}
-                        </div>
-                      )}
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-card rounded-full z-20" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-semibold truncate">
-                          {chat.name}
-                        </h3>
-                        <span className="text-xs text-primary font-medium">
-                          {formatTime(chat.timestamp)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p className="text-sm truncate text-foreground font-medium">
-                          {chat.isTyping ? (
-                            <span className="text-primary animate-pulse">Typing...</span>
-                          ) : (
-                            getLastMessagePreview(chat.lastMessage)
-                          )}
-                        </p>
-                        {chat.unreadCount ? (
-                          <span className="ml-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full min-w-5 text-center">
-                            {chat.unreadCount}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ))
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-                <p className="text-muted-foreground">No unread messages</p>
-              </div>
-            )}
-          </ScrollArea>
-        </TabsContent>
-        
-        <TabsContent value="groups" className="flex-1 overflow-hidden m-0">
-          <ScrollArea className="h-full">
-            {filteredChats.filter(chat => chat.is_group).length > 0 ? (
-              filteredChats
-                .filter(chat => chat.is_group)
-                .map((chat) => (
-                  <div
-                    key={chat.id}
-                    onClick={() => onSelectChat(chat.id)}
-                    className={`flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors cursor-pointer ${
-                      selectedChat === chat.id ? "bg-secondary/50" : ""
-                    }`}
-                  >
-                    <div className="relative">
-                      {chat.avatar ? (
-                        <img
-                          src={chat.avatar}
-                          alt={chat.name}
-                          className="w-12 h-12 rounded-full relative z-10 object-cover"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center relative z-10">
-                          <Users className="w-6 h-6 text-primary" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start">
-                        <h3 className={`font-medium truncate ${chat.unreadCount ? "font-semibold" : ""}`}>
-                          {chat.name}
-                        </h3>
-                        <span className={`text-xs ${chat.unreadCount ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                          {formatTime(chat.timestamp)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p 
-                          className={`text-sm truncate ${
-                            chat.unreadCount ? "text-foreground font-medium" : "text-muted-foreground"
-                          }`}
-                        >
-                          {chat.isTyping ? (
-                            <span className="text-primary animate-pulse">Typing...</span>
-                          ) : (
-                            getLastMessagePreview(chat.lastMessage)
-                          )}
-                        </p>
-                        {chat.unreadCount ? (
-                          <span className="ml-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full min-w-5 text-center">
-                            {chat.unreadCount}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ))
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-                <p className="text-muted-foreground mb-2">No group chats yet</p>
-                <Button size="sm" className="mt-2">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Group
-                </Button>
-              </div>
-            )}
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+              </button>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+      
+      <Button
+        onClick={onCreateChat}
+        className="m-3 gap-2"
+      >
+        <PlusCircle className="h-4 w-4" />
+        New Chat
+      </Button>
     </div>
   );
 };

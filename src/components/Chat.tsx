@@ -71,7 +71,7 @@ export const Chat = () => {
             image_url: isImage ? `https://picsum.photos/500/300?random=${index}` : undefined,
             reaction_type: Math.random() > 0.8 ? ["like", "love", "laugh"][Math.floor(Math.random() * 3)] as "like" | "love" | "laugh" : undefined,
             read: Math.random() > 0.3,
-            delivery_status: Math.random() > 0.5 ? "read" : "delivered",
+            delivery_status: Math.random() > 0.5 ? "read" : "delivered" as "sent" | "delivered" | "read",
           };
         });
 

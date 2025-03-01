@@ -34,6 +34,7 @@ export interface RecentChat {
   is_archived?: boolean;
   is_muted?: boolean;
   color_theme?: string;
+  delivery_status?: "sent" | "delivered" | "read";
 }
 
 export interface ChatSettings {
