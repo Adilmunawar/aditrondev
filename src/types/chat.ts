@@ -53,3 +53,43 @@ export interface UserStatus {
   last_seen?: Date;
   custom_status?: string;
 }
+
+// New interfaces for the activated features
+export interface Sticker {
+  id: string;
+  url: string;
+  pack_id: string;
+  emoji?: string;
+}
+
+export interface StickerPack {
+  id: string;
+  name: string;
+  author: string;
+  stickers: Sticker[];
+  cover_sticker_url: string;
+}
+
+export interface CallHistory {
+  id: string;
+  chat_id: string;
+  caller_id: string;
+  receiver_id: string;
+  call_type: "audio" | "video";
+  status: "missed" | "completed" | "rejected";
+  start_time: Date;
+  end_time?: Date;
+  duration_seconds?: number;
+}
+
+export interface MediaItem {
+  id: string;
+  url: string;
+  type: "image" | "video" | "voice" | "document";
+  name?: string;
+  size?: number;
+  thumbnail_url?: string;
+  created_at: Date;
+  message_id: string;
+  chat_id: string;
+}
