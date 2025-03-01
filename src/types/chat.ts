@@ -8,6 +8,7 @@ export interface Message {
   chat_id: string;
   is_sticker?: boolean;
   sticker_url?: string;
+  read?: boolean;
 }
 
 export interface RecentChat {
@@ -19,5 +20,6 @@ export interface RecentChat {
   avatar?: string;
   hasStatus?: boolean;
   is_group?: boolean;
+  participants?: string[];
+  isTyping?: boolean;
 }
-
