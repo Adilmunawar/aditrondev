@@ -1,61 +1,59 @@
-# Welcome to your Lovable project
+```markdown
+# AditronDev
 
-## Project info
+![Project Logo](https://linktoyourlogo.png)
 
-**URL**: https://lovable.dev/projects/bfc29071-db40-440a-a430-49ed724abb1c
+Welcome to AditronDev, a TypeScript-based project.
 
-## How can I edit this code?
+## Table of Contents
+- [About the Project](#about-the-project)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-There are several ways of editing your application.
+## About the Project
+AditronDev is a TypeScript-based project that aims to...
 
-**Use Lovable**
+## Installation
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/Adilmunawar/aditrondev.git
+    ```
+2. Navigate to the project directory:
+    ```bash
+    cd aditrondev
+    ```
+3. Install dependencies:
+    ```bash
+    npm install
+    ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/bfc29071-db40-440a-a430-49ed724abb1c) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+## Usage
+To start the project:
+```bash
+npm start
+```
+To build the project:
+```bash
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+## Contributing
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-**Use GitHub Codespaces**
+## License
+Distributed under the MIT License. See `LICENSE` for more information.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Contact
+Adil Munawar - [@how_adil](https://instagram.com/how_adil) - AdilMunawarX@gmail.com
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Project Link: [https://github.com/Adilmunawar/aditrondev](https://github.com/Adilmunawar/aditrondev)
