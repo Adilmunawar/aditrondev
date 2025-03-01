@@ -9,6 +9,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      call_history: {
+        Row: {
+          call_type: string
+          caller_id: string | null
+          chat_id: string | null
+          created_at: string | null
+          duration_seconds: number | null
+          end_time: string | null
+          id: string
+          receiver_id: string | null
+          start_time: string | null
+          status: string
+        }
+        Insert: {
+          call_type: string
+          caller_id?: string | null
+          chat_id?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          end_time?: string | null
+          id?: string
+          receiver_id?: string | null
+          start_time?: string | null
+          status: string
+        }
+        Update: {
+          call_type?: string
+          caller_id?: string | null
+          chat_id?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          end_time?: string | null
+          id?: string
+          receiver_id?: string | null
+          start_time?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_history_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_participants: {
         Row: {
           chat_id: string | null
@@ -117,36 +164,111 @@ export type Database = {
           },
         ]
       }
+      media_items: {
+        Row: {
+          chat_id: string | null
+          created_at: string | null
+          id: string
+          message_id: string | null
+          name: string | null
+          size: number | null
+          thumbnail_url: string | null
+          type: string
+          url: string
+        }
+        Insert: {
+          chat_id?: string | null
+          created_at?: string | null
+          id?: string
+          message_id?: string | null
+          name?: string | null
+          size?: number | null
+          thumbnail_url?: string | null
+          type: string
+          url: string
+        }
+        Update: {
+          chat_id?: string | null
+          created_at?: string | null
+          id?: string
+          message_id?: string | null
+          name?: string | null
+          size?: number | null
+          thumbnail_url?: string | null
+          type?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_items_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_items_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           chat_id: string | null
           content: string | null
           created_at: string | null
+          delivery_status: string | null
           id: string
+          image_url: string | null
+          is_image: boolean | null
+          is_reaction: boolean | null
           is_sticker: boolean | null
+          is_voice: boolean | null
+          reaction_type: string | null
+          read: boolean | null
           sender_id: string | null
           sticker_url: string | null
           updated_at: string | null
+          voice_url: string | null
         }
         Insert: {
           chat_id?: string | null
           content?: string | null
           created_at?: string | null
+          delivery_status?: string | null
           id?: string
+          image_url?: string | null
+          is_image?: boolean | null
+          is_reaction?: boolean | null
           is_sticker?: boolean | null
+          is_voice?: boolean | null
+          reaction_type?: string | null
+          read?: boolean | null
           sender_id?: string | null
           sticker_url?: string | null
           updated_at?: string | null
+          voice_url?: string | null
         }
         Update: {
           chat_id?: string | null
           content?: string | null
           created_at?: string | null
+          delivery_status?: string | null
           id?: string
+          image_url?: string | null
+          is_image?: boolean | null
+          is_reaction?: boolean | null
           is_sticker?: boolean | null
+          is_voice?: boolean | null
+          reaction_type?: string | null
+          read?: boolean | null
           sender_id?: string | null
           sticker_url?: string | null
           updated_at?: string | null
+          voice_url?: string | null
         }
         Relationships: [
           {
@@ -250,6 +372,62 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sticker_packs: {
+        Row: {
+          author: string
+          cover_sticker_url: string | null
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          author: string
+          cover_sticker_url?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          author?: string
+          cover_sticker_url?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      stickers: {
+        Row: {
+          created_at: string | null
+          emoji: string | null
+          id: string
+          pack_id: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          pack_id?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          pack_id?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stickers_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "sticker_packs"
             referencedColumns: ["id"]
           },
         ]

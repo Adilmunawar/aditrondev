@@ -53,7 +53,7 @@ export const fetchMessages = async (chatId: string): Promise<Message[]> => {
     
     if (error) throw error;
     
-    // Transform to Message format
+    // Transform to Message format with proper type handling
     const messages: Message[] = data.map(msg => ({
       id: msg.id,
       content: msg.content,
@@ -63,7 +63,14 @@ export const fetchMessages = async (chatId: string): Promise<Message[]> => {
       chat_id: msg.chat_id,
       is_sticker: msg.is_sticker || false,
       sticker_url: msg.sticker_url,
-      delivery_status: "read"
+      is_voice: msg.is_voice || false,
+      voice_url: msg.voice_url || undefined,
+      is_image: msg.is_image || false,
+      image_url: msg.image_url || undefined,
+      is_reaction: msg.is_reaction || false,
+      reaction_type: msg.reaction_type as "like" | "love" | "laugh" | "wow" | "sad" | "angry" | undefined,
+      read: msg.read || false,
+      delivery_status: (msg.delivery_status as "sent" | "delivered" | "read") || "sent"
     }));
     
     return messages;
@@ -99,7 +106,8 @@ export const sendMessage = async (
       is_voice: options?.is_voice || false,
       voice_url: options?.voice_url || null,
       is_image: options?.is_image || false,
-      image_url: options?.image_url || null
+      image_url: options?.image_url || null,
+      delivery_status: "sent"
     };
     
     const { data, error } = await supabase
@@ -109,6 +117,12 @@ export const sendMessage = async (
       .single();
     
     if (error) throw error;
+    
+    // Type guard to make sure delivery_status is one of the allowed values
+    const deliveryStatus: "sent" | "delivered" | "read" = 
+      ["sent", "delivered", "read"].includes(data.delivery_status) 
+        ? (data.delivery_status as "sent" | "delivered" | "read") 
+        : "sent";
     
     return {
       id: data.id,
@@ -123,7 +137,7 @@ export const sendMessage = async (
       voice_url: data.voice_url,
       is_image: data.is_image || false,
       image_url: data.image_url,
-      delivery_status: "sent"
+      delivery_status: deliveryStatus
     };
   } catch (error) {
     console.error('Error sending message:', error);
@@ -179,40 +193,101 @@ export const createChat = async (name: string, participants: string[], isGroup: 
 
 // Fetch sticker packs
 export const fetchStickerPacks = async (): Promise<StickerPack[]> => {
-  // Simulating sticker packs since we don't have a backend API yet
-  return [
-    {
-      id: "pack1",
-      name: "Classic Emotions",
-      author: "Lovable",
-      cover_sticker_url: "https://source.unsplash.com/random/100x100?emoji",
-      stickers: Array(8).fill(0).map((_, i) => ({
-        id: `sticker${i+1}`,
-        url: `https://source.unsplash.com/random/200x200?emoji=${i+1}`,
-        pack_id: "pack1",
-        emoji: ["😀", "😂", "😍", "😎", "🥳", "🤔", "😢", "🥰"][i]
-      }))
-    },
-    {
-      id: "pack2",
-      name: "Animals",
-      author: "Lovable",
-      cover_sticker_url: "https://source.unsplash.com/random/100x100?animal",
-      stickers: Array(8).fill(0).map((_, i) => ({
-        id: `sticker${i+9}`,
-        url: `https://source.unsplash.com/random/200x200?animal=${i+1}`,
-        pack_id: "pack2",
-        emoji: ["🐶", "🐱", "🐭", "🐰", "🦊", "🐻", "🐼", "🐨"][i]
-      }))
+  try {
+    // Query sticker packs from the database
+    const { data: packData, error: packError } = await supabase
+      .from('sticker_packs')
+      .select('*');
+    
+    if (packError) throw packError;
+    
+    const stickerPacks: StickerPack[] = [];
+    
+    // For each pack, get its stickers
+    for (const pack of packData) {
+      const { data: stickerData, error: stickerError } = await supabase
+        .from('stickers')
+        .select('*')
+        .eq('pack_id', pack.id);
+        
+      if (stickerError) throw stickerError;
+      
+      const stickers: Sticker[] = stickerData.map(sticker => ({
+        id: sticker.id,
+        url: sticker.url,
+        pack_id: sticker.pack_id,
+        emoji: sticker.emoji
+      }));
+      
+      stickerPacks.push({
+        id: pack.id,
+        name: pack.name,
+        author: pack.author,
+        cover_sticker_url: pack.cover_sticker_url,
+        stickers
+      });
     }
-  ];
+    
+    return stickerPacks;
+  } catch (error) {
+    console.error('Error fetching sticker packs:', error);
+    
+    // Fallback to sample data if there's an error
+    return [
+      {
+        id: "pack1",
+        name: "Classic Emotions",
+        author: "Lovable",
+        cover_sticker_url: "https://source.unsplash.com/random/100x100?emoji",
+        stickers: Array(8).fill(0).map((_, i) => ({
+          id: `sticker${i+1}`,
+          url: `https://source.unsplash.com/random/200x200?emoji=${i+1}`,
+          pack_id: "pack1",
+          emoji: ["😀", "😂", "😍", "😎", "🥳", "🤔", "😢", "🥰"][i]
+        }))
+      },
+      {
+        id: "pack2",
+        name: "Animals",
+        author: "Lovable",
+        cover_sticker_url: "https://source.unsplash.com/random/100x100?animal",
+        stickers: Array(8).fill(0).map((_, i) => ({
+          id: `sticker${i+9}`,
+          url: `https://source.unsplash.com/random/200x200?animal=${i+1}`,
+          pack_id: "pack2",
+          emoji: ["🐶", "🐱", "🐭", "🐰", "🦊", "🐻", "🐼", "🐨"][i]
+        }))
+      }
+    ];
+  }
 };
 
 // Fetch media items for a chat
 export const fetchMediaItems = async (chatId: string): Promise<MediaItem[]> => {
   try {
-    // In a real implementation, we would fetch from the database
-    // For now, let's return some dummy data
+    const { data, error } = await supabase
+      .from('media_items')
+      .select('*')
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    
+    return data.map(item => ({
+      id: item.id,
+      url: item.url,
+      type: item.type as "image" | "video" | "voice" | "document",
+      name: item.name,
+      size: item.size,
+      thumbnail_url: item.thumbnail_url,
+      created_at: new Date(item.created_at),
+      message_id: item.message_id,
+      chat_id: item.chat_id
+    }));
+  } catch (error) {
+    console.error('Error fetching media items:', error);
+    
+    // Return some dummy data for now
     return Array(12).fill(0).map((_, i) => ({
       id: `media${i+1}`,
       url: `https://source.unsplash.com/random/300x300?media=${i+1}`,
@@ -224,26 +299,46 @@ export const fetchMediaItems = async (chatId: string): Promise<MediaItem[]> => {
       message_id: `msg${i+1}`,
       chat_id: chatId
     }));
-  } catch (error) {
-    console.error('Error fetching media items:', error);
-    return [];
   }
 };
 
 // Fetch call history
 export const fetchCallHistory = async (): Promise<CallHistory[]> => {
-  // Simulate call history
-  return Array(5).fill(0).map((_, i) => ({
-    id: `call${i+1}`,
-    chat_id: `chat${i+1}`,
-    caller_id: "user1",
-    receiver_id: `user${i+2}`,
-    call_type: i % 2 === 0 ? "audio" : "video",
-    status: ["completed", "missed", "rejected"][Math.floor(Math.random() * 3)] as "completed" | "missed" | "rejected",
-    start_time: new Date(Date.now() - Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000),
-    end_time: new Date(Date.now() - Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000 + 300000),
-    duration_seconds: Math.floor(Math.random() * 600)
-  }));
+  try {
+    const { data, error } = await supabase
+      .from('call_history')
+      .select('*')
+      .order('start_time', { ascending: false });
+      
+    if (error) throw error;
+    
+    return data.map(call => ({
+      id: call.id,
+      chat_id: call.chat_id,
+      caller_id: call.caller_id,
+      receiver_id: call.receiver_id,
+      call_type: call.call_type as "audio" | "video",
+      status: call.status as "completed" | "missed" | "rejected",
+      start_time: new Date(call.start_time),
+      end_time: call.end_time ? new Date(call.end_time) : undefined,
+      duration_seconds: call.duration_seconds
+    }));
+  } catch (error) {
+    console.error('Error fetching call history:', error);
+    
+    // Simulate call history
+    return Array(5).fill(0).map((_, i) => ({
+      id: `call${i+1}`,
+      chat_id: `chat${i+1}`,
+      caller_id: "user1",
+      receiver_id: `user${i+2}`,
+      call_type: i % 2 === 0 ? "audio" : "video",
+      status: ["completed", "missed", "rejected"][Math.floor(Math.random() * 3)] as "completed" | "missed" | "rejected",
+      start_time: new Date(Date.now() - Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000),
+      end_time: new Date(Date.now() - Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000 + 300000),
+      duration_seconds: Math.floor(Math.random() * 600)
+    }));
+  }
 };
 
 // Helper function to get random color for chat avatars
