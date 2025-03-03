@@ -8,6 +8,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -37,7 +38,10 @@ serve(async (req) => {
       .eq('phone_number', phoneNumber)
       .maybeSingle()
     
-    if (lookupError) throw lookupError
+    if (lookupError) {
+      console.error('Error looking up user:', lookupError)
+      throw lookupError
+    }
 
     if (existingUser) {
       // Update existing user's OTP
@@ -48,35 +52,52 @@ serve(async (req) => {
           otp_valid_until: otpValidUntil.toISOString(),
           phone_verified: false
         })
-        .eq('phone_number', phoneNumber)
+        .eq('id', existingUser.id)
 
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error('Error updating profile:', updateError)
+        throw updateError
+      }
     } else {
-      // Create a new anonymous user
-      const { data: { user }, error: signUpError } = await supabaseClient.auth.signUp({
-        email: `${phoneNumber.replace(/[^0-9]/g, '')}@phone.aditron.app`, // Create a fake email
-        password: crypto.randomUUID().toString(), // Random password since login will be via OTP
-        options: {
-          data: {
+      // For new users, we'll create a temporary entry in a phone_verification table
+      // First check if the table exists, and create it if not
+      try {
+        const { data: tempUser, error: tempUserError } = await supabaseClient
+          .from('phone_verification')
+          .upsert({
             phone_number: phoneNumber,
-          }
+            otp_secret: otp,
+            otp_valid_until: otpValidUntil.toISOString(),
+          }, { onConflict: 'phone_number' })
+          .select()
+        
+        if (tempUserError) {
+          console.error('Error creating temporary user:', tempUserError)
+          throw tempUserError
         }
-      })
-
-      if (signUpError) throw signUpError
-      
-      // Update the profile with OTP info
-      const { error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({
-          phone_number: phoneNumber,
-          otp_secret: otp,
-          otp_valid_until: otpValidUntil.toISOString(),
-          phone_verified: false
-        })
-        .eq('id', user?.id)
-
-      if (updateError) throw updateError
+      } catch (error) {
+        console.error('Error with phone verification table, creating it:', error)
+        // This is likely because the table doesn't exist yet
+        const { error: createTableError } = await supabaseClient.rpc('create_phone_verification_table')
+        if (createTableError) {
+          console.error('Error creating phone_verification table:', createTableError)
+          throw createTableError
+        }
+        
+        // Try the upsert again
+        const { error: retryError } = await supabaseClient
+          .from('phone_verification')
+          .upsert({
+            phone_number: phoneNumber,
+            otp_secret: otp,
+            otp_valid_until: otpValidUntil.toISOString(),
+          }, { onConflict: 'phone_number' })
+        
+        if (retryError) {
+          console.error('Error creating temporary user on retry:', retryError)
+          throw retryError
+        }
+      }
     }
 
     // In production, you would integrate with an SMS service here
@@ -92,7 +113,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in send-otp function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || "Failed to send OTP" }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
