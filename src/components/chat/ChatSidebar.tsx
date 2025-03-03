@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { RecentChat } from "@/types/chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
-import { fetchCallHistory } from "@/utils/chatBackend";
+import { fetchCallHistory } from "@/utils/chat/calls";
 
 export interface ChatSidebarProps {
   recentChats: RecentChat[];
@@ -50,7 +49,6 @@ export const ChatSidebar = ({
   );
 
   useEffect(() => {
-    // Load call history when the calls tab is activated
     if (activeTab === "calls") {
       loadCallHistory();
     }
