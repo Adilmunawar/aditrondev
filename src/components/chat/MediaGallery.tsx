@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +40,11 @@ export const MediaGallery = ({ chatId, onClose }: MediaGalleryProps) => {
     return false;
   });
 
+  // Type-safe handler for tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as "images" | "videos" | "files");
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex flex-col">
       {/* Header */}
@@ -53,7 +59,7 @@ export const MediaGallery = ({ chatId, onClose }: MediaGalleryProps) => {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="images" className="border-b border-border" onValueChange={setActiveTab}>
+      <Tabs defaultValue="images" className="border-b border-border" onValueChange={handleTabChange}>
         <TabsList className="px-6">
           <TabsTrigger value="images">Images</TabsTrigger>
           <TabsTrigger value="videos">Videos</TabsTrigger>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Smile, Search, StickyNote, Plus, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import data from "@emoji-mart/data";
-import { Picker } from "@emoji-mart/react";
+import Picker from "@emoji-mart/react";
 import { fetchStickerPacks } from "@/utils/chat/stickers";
 import { StickerPack, Sticker } from "@/types/chat";
 
@@ -45,6 +46,11 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({ onSelectSticker })
     console.log("Selected emoji:", emoji);
   };
 
+  // Type-safe handler for tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
   const renderSticker = (sticker: Sticker) => (
     <Button
       key={sticker.id}
@@ -70,7 +76,7 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({ onSelectSticker })
         </div>
       </div>
 
-      <Tabs defaultValue="stickers" className="flex-1 flex flex-col" onValueChange={setActiveTab}>
+      <Tabs defaultValue="stickers" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
         <TabsList className="grid grid-cols-2">
           <TabsTrigger value="stickers" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <StickyNote className="h-4 w-4 mr-1" />
