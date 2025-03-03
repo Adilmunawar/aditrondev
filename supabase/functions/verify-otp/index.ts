@@ -10,198 +10,179 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    const { phoneNumber, otp } = await req.json()
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing environment variables');
+      throw new Error('Server configuration error');
+    }
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+    
+    const { phoneNumber, otp } = await req.json();
     
     if (!phoneNumber || !otp) {
-      throw new Error('Phone number and OTP are required')
+      throw new Error('Phone number and OTP are required');
     }
 
-    console.log(`Verifying OTP for ${phoneNumber}`)
+    console.log(`Verifying OTP for ${phoneNumber}`);
 
-    // First check if we have an existing user with this phone number
-    const { data: existingUser, error: existingUserError } = await supabaseClient
+    // First check profiles table for existing users
+    const { data: existingProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, otp_secret, otp_valid_until')
       .eq('phone_number', phoneNumber)
-      .maybeSingle()
+      .maybeSingle();
     
-    if (existingUserError) {
-      console.error('Error checking for existing user:', existingUserError)
-      throw existingUserError
+    if (profileError) {
+      console.error('Error checking profiles:', profileError);
     }
 
-    if (existingUser) {
-      console.log(`Found existing user: ${existingUser.id}`)
+    // Verify OTP for existing user
+    if (existingProfile?.id) {
+      console.log(`Found existing user: ${existingProfile.id}`);
       
-      // Validate OTP for existing user
-      if (existingUser.otp_secret !== otp) {
-        console.error('Invalid OTP provided for existing user')
-        throw new Error('Invalid verification code')
+      if (existingProfile.otp_secret !== otp) {
+        console.error('Invalid OTP for existing user');
+        throw new Error('Invalid verification code');
       }
 
-      // Check if OTP is expired
-      if (new Date(existingUser.otp_valid_until) < new Date()) {
-        console.error('OTP has expired for existing user')
-        throw new Error('Verification code has expired')
+      if (new Date(existingProfile.otp_valid_until) < new Date()) {
+        console.error('Expired OTP for existing user');
+        throw new Error('Verification code has expired');
       }
       
-      // Mark the user's phone as verified
-      const { error: updateError } = await supabaseClient
+      // Mark phone as verified and clear OTP
+      const { error: updateError } = await supabaseAdmin
         .from('profiles')
         .update({
           phone_verified: true,
-          otp_secret: null  // Clear the OTP after successful verification
+          otp_secret: null
         })
-        .eq('id', existingUser.id)
+        .eq('id', existingProfile.id);
       
       if (updateError) {
-        console.error('Error updating user profile:', updateError)
-        throw updateError
+        console.error('Error updating profile:', updateError);
+        throw new Error('Failed to verify phone');
       }
       
-      // Get the user from auth.users
-      const { data: authUser, error: authUserError } = await supabaseClient.auth.admin.getUserById(
-        existingUser.id
-      )
-      
-      if (authUserError) {
-        console.error('Error getting auth user:', authUserError)
-        throw authUserError
-      }
-      
-      // Create a new session for the user
-      const { data: session, error: sessionError } = await supabaseClient.auth.admin.createSession({
-        user_id: existingUser.id
-      })
+      // Create session for existing user
+      const { data: session, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
+        user_id: existingProfile.id
+      });
       
       if (sessionError) {
-        console.error('Error creating session:', sessionError)
-        throw sessionError
+        console.error('Error creating session:', sessionError);
+        throw sessionError;
       }
-      
-      console.log(`Created session for existing user: ${existingUser.id}`)
       
       return new Response(
         JSON.stringify({ 
-          message: 'Phone number verified successfully',
+          message: 'Phone verified successfully',
           session: session
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      );
     } else {
-      // Check if a temporary verification record exists
-      const { data: tempUser, error: tempUserError } = await supabaseClient
+      // Check temp verification table for new users
+      const { data: tempVerification, error: verificationError } = await supabaseAdmin
         .from('phone_verification')
         .select('otp_secret, otp_valid_until')
         .eq('phone_number', phoneNumber)
-        .maybeSingle()
+        .maybeSingle();
       
-      if (tempUserError) {
-        console.error('Error checking temporary user:', tempUserError)
-        throw tempUserError
+      if (verificationError) {
+        console.error('Error checking verification:', verificationError);
       }
       
-      if (!tempUser) {
-        console.error('No verification record found')
-        throw new Error('No verification record found for this phone number')
+      if (!tempVerification) {
+        console.error('No verification record found');
+        throw new Error('No verification record found');
       }
       
-      // Validate OTP for temporary user
-      if (tempUser.otp_secret !== otp) {
-        console.error('Invalid OTP provided for new user')
-        throw new Error('Invalid verification code')
+      if (tempVerification.otp_secret !== otp) {
+        console.error('Invalid OTP for new user');
+        throw new Error('Invalid verification code');
       }
       
-      // Check if OTP is expired
-      if (new Date(tempUser.otp_valid_until) < new Date()) {
-        console.error('OTP has expired for new user')
-        throw new Error('Verification code has expired')
+      if (new Date(tempVerification.otp_valid_until) < new Date()) {
+        console.error('Expired OTP for new user');
+        throw new Error('Verification code has expired');
       }
       
-      console.log('OTP verified for new user, creating account')
+      console.log('OTP verified for new user, creating account');
       
-      // Create a new user with random password (they'll only log in via OTP)
-      const password = Math.random().toString(36).slice(-10)
+      // Generate a secure random password
+      const password = crypto.randomUUID();
       
-      // Create a new user in auth.users
-      const { data: newAuthUser, error: createUserError } = await supabaseClient.auth.admin.createUser({
+      // Create a new user
+      const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: `${phoneNumber.replace(/[^0-9]/g, '')}@phone.example.com`,
         phone: phoneNumber,
-        password: password,
-        email_confirm: true,
         phone_confirm: true,
-        user_metadata: {
-          phone_number: phoneNumber
-        }
-      })
+        password: password,
+        email_confirm: true
+      });
       
       if (createUserError) {
-        console.error('Error creating new user:', createUserError)
-        throw createUserError
+        console.error('Error creating user:', createUserError);
+        throw createUserError;
       }
       
-      // Update the user's profile with phone verified
-      const { error: updateProfileError } = await supabaseClient
-        .from('profiles')
-        .update({
-          phone_number: phoneNumber,
-          phone_verified: true
-        })
-        .eq('id', newAuthUser.user.id)
-      
-      if (updateProfileError) {
-        console.error('Error updating new profile:', updateProfileError)
-        throw updateProfileError
+      // Update the new user's profile
+      if (newUser?.user) {
+        const { error: updateProfileError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            phone_number: phoneNumber,
+            phone_verified: true
+          })
+          .eq('id', newUser.user.id);
+        
+        if (updateProfileError) {
+          console.error('Error updating profile:', updateProfileError);
+        }
+        
+        // Clean up the verification record
+        await supabaseAdmin
+          .from('phone_verification')
+          .delete()
+          .eq('phone_number', phoneNumber);
+        
+        // Create a session
+        const { data: session, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
+          user_id: newUser.user.id
+        });
+        
+        if (sessionError) {
+          console.error('Error creating session:', sessionError);
+          throw sessionError;
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            message: 'Account created and verified',
+            session: session
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        throw new Error('Failed to create user account');
       }
-      
-      // Delete the temporary verification record
-      const { error: deleteError } = await supabaseClient
-        .from('phone_verification')
-        .delete()
-        .eq('phone_number', phoneNumber)
-      
-      if (deleteError) {
-        console.error('Error deleting temporary record:', deleteError)
-        // Non-critical error, continue
-      }
-      
-      // Create a new session for the user
-      const { data: session, error: sessionError } = await supabaseClient.auth.admin.createSession({
-        user_id: newAuthUser.user.id
-      })
-      
-      if (sessionError) {
-        console.error('Error creating session for new user:', sessionError)
-        throw sessionError
-      }
-      
-      console.log(`Created new user and session: ${newAuthUser.user.id}`)
-      
-      return new Response(
-        JSON.stringify({ 
-          message: 'New user created and verified successfully',
-          session: session
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
     }
   } catch (error) {
-    console.error('Error in verify-otp function:', error)
+    console.error('Error in verify-otp function:', error);
     return new Response(
       JSON.stringify({ error: error.message || "Failed to verify OTP" }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    )
+    );
   }
-})
+});

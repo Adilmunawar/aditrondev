@@ -88,16 +88,6 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
       // If we have a session in the response, set it
       if (data && data.session) {
         await supabase.auth.setSession(data.session);
-        
-        // Update any user profile information if needed
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ phone_verified: true })
-          .eq('id', data.session.user.id);
-          
-        if (profileError) {
-          console.error("Error updating profile:", profileError);
-        }
       }
 
       toast({

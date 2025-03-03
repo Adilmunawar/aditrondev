@@ -14,120 +14,110 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    const { phoneNumber } = await req.json()
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing environment variables');
+      throw new Error('Server configuration error');
+    }
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+    
+    const { phoneNumber } = await req.json();
     if (!phoneNumber) {
-      throw new Error('Phone number is required')
+      throw new Error('Phone number is required');
     }
 
+    console.log(`Processing OTP request for: ${phoneNumber}`);
+
     // Generate a random 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
-    const otpValidUntil = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpValidUntil = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-    // For development, log the OTP
-    console.log(`OTP for ${phoneNumber}: ${otp}`)
-
-    // Check if we have a user with this phone number already
-    const { data: existingUser, error: lookupError } = await supabaseClient
+    // Store OTP in a safer way - directly use profiles table if possible
+    // First check if user exists with this phone number
+    const { data: existingProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('phone_number', phoneNumber)
-      .maybeSingle()
-    
-    if (lookupError) {
-      console.error('Error looking up user:', lookupError)
-      throw lookupError
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error checking profiles:', profileError);
     }
 
-    if (existingUser) {
-      // Update existing user's OTP
-      const { error: updateError } = await supabaseClient
+    if (existingProfile?.id) {
+      // Update the existing profile with new OTP
+      console.log(`Updating OTP for existing user: ${existingProfile.id}`);
+      const { error: updateError } = await supabaseAdmin
         .from('profiles')
         .update({
           otp_secret: otp,
           otp_valid_until: otpValidUntil.toISOString(),
           phone_verified: false
         })
-        .eq('id', existingUser.id)
+        .eq('id', existingProfile.id);
 
       if (updateError) {
-        console.error('Error updating profile:', updateError)
-        throw updateError
+        console.error('Error updating profile:', updateError);
+        throw new Error('Failed to update profile');
       }
     } else {
-      // For new users, create a temporary entry in a phone_verification table
-      // First check if the table exists
-      const { error: checkTableError } = await supabaseClient
-        .from('phone_verification')
-        .select('phone_number')
-        .limit(1)
-      
-      if (checkTableError) {
-        console.log('Phone verification table might not exist. Creating it.')
+      // Use a temporary table for non-registered users
+      // First ensure the phone_verification table exists
+      try {
+        // Try to create the table if it doesn't exist
+        await supabaseAdmin.rpc('execute_sql', {
+          sql: `
+            CREATE TABLE IF NOT EXISTS public.phone_verification (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              phone_number TEXT UNIQUE NOT NULL,
+              otp_secret TEXT NOT NULL,
+              otp_valid_until TIMESTAMPTZ NOT NULL,
+              created_at TIMESTAMPTZ DEFAULT now()
+            );
+          `
+        });
         
-        // Create the phone_verification table
-        const { error: createTableError } = await supabaseClient.rpc('create_phone_verification_table')
-        
-        if (createTableError) {
-          console.error('Error creating phone_verification table:', createTableError)
+        // Insert or update the phone verification record
+        const { error: upsertError } = await supabaseAdmin
+          .from('phone_verification')
+          .upsert({
+            phone_number: phoneNumber,
+            otp_secret: otp,
+            otp_valid_until: otpValidUntil.toISOString(),
+          }, { onConflict: 'phone_number' });
           
-          // Try to create the table directly with SQL
-          const { error: sqlError } = await supabaseClient.rpc('execute_sql', {
-            sql: `
-              CREATE TABLE IF NOT EXISTS public.phone_verification (
-                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                phone_number TEXT UNIQUE NOT NULL,
-                otp_secret TEXT,
-                otp_valid_until TIMESTAMPTZ,
-                created_at TIMESTAMPTZ DEFAULT now()
-              );
-            `
-          })
-          
-          if (sqlError) {
-            console.error('Error creating table via SQL:', sqlError)
-            throw new Error('Could not create phone verification table')
-          }
+        if (upsertError) {
+          console.error('Error upserting verification record:', upsertError);
+          throw new Error('Failed to create verification record');
         }
-      }
-      
-      // Try the upsert
-      const { error: upsertError } = await supabaseClient
-        .from('phone_verification')
-        .upsert({
-          phone_number: phoneNumber,
-          otp_secret: otp,
-          otp_valid_until: otpValidUntil.toISOString(),
-        }, { onConflict: 'phone_number' })
-      
-      if (upsertError) {
-        console.error('Error creating temporary user record:', upsertError)
-        throw upsertError
+      } catch (error) {
+        console.error('Error with verification table:', error);
+        throw new Error('Database operation failed');
       }
     }
 
-    // In production, you would integrate with an SMS service here
-    // await sendSMS(phoneNumber, `Your verification code is: ${otp}`)
-
+    console.log(`OTP generated successfully for ${phoneNumber}: ${otp}`);
+    
+    // In production, integrate with Twilio or other SMS provider here
+    // For development, just return the OTP
     return new Response(
       JSON.stringify({ 
         message: 'OTP sent successfully',
-        dev_otp: otp // Only for development, remove in production
+        dev_otp: otp // Only include in development
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    );
   } catch (error) {
-    console.error('Error in send-otp function:', error)
+    console.error('Error in send-otp function:', error);
     return new Response(
       JSON.stringify({ error: error.message || "Failed to send OTP" }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    )
+    );
   }
-})
+});
