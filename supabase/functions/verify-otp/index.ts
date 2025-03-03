@@ -23,20 +23,14 @@ serve(async (req) => {
       throw new Error('Phone number and OTP are required')
     }
 
-    const userId = req.headers.get('Authorization')?.split(' ')[1]
-    if (!userId) {
-      throw new Error('Unauthorized')
-    }
-
     // Verify the OTP
     const { data: profile, error: fetchError } = await supabaseClient
       .from('profiles')
       .select('*')
-      .eq('id', userId)
       .eq('phone_number', phoneNumber)
       .single()
 
-    if (fetchError || !profile) {
+    if (fetchError) {
       throw new Error('Invalid verification attempt')
     }
 
@@ -56,15 +50,42 @@ serve(async (req) => {
         otp_secret: null,
         otp_valid_until: null
       })
-      .eq('id', userId)
+      .eq('id', profile.id)
 
     if (updateError) throw updateError
 
+    // Sign in the user
+    const { data: { user }, error: signInError } = await supabaseClient.auth.signInWithPassword({
+      email: `${phoneNumber.replace(/[^0-9]/g, '')}@phone.aditron.app`,
+      password: profile.id // This will be the encrypted auth.users.id stored in the database
+    })
+
+    if (signInError) {
+      // If signing in fails, try to recover by getting an access token directly
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.admin.createSession({
+        user_id: profile.id
+      })
+
+      if (sessionError) throw sessionError
+
+      return new Response(
+        JSON.stringify({ 
+          message: 'Phone number verified successfully',
+          session: session
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     return new Response(
-      JSON.stringify({ message: 'Phone number verified successfully' }),
+      JSON.stringify({ 
+        message: 'Phone number verified successfully',
+        user: user
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
+    console.error('Error in verify-otp function:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

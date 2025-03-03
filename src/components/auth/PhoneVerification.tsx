@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { Phone, ArrowRight, Loader2 } from "lucide-react";
+import { Phone, ArrowRight, Loader2, KeyRound, Shield } from "lucide-react";
 import { 
   InputOTP,
   InputOTPGroup,
@@ -20,6 +20,7 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   const sendOTP = async () => {
     if (!phoneNumber.trim()) {
@@ -33,11 +34,16 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('send-otp', {
+      const { data, error } = await supabase.functions.invoke('send-otp', {
         body: { phoneNumber: phoneNumber.trim() }
       });
 
       if (error) throw error;
+
+      // For development only - store the OTP to display
+      if (data && data.dev_otp) {
+        setDevOtp(data.dev_otp);
+      }
 
       setOtpSent(true);
       toast({
@@ -47,7 +53,7 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
     } catch (error: any) {
       toast({
         title: "Error sending OTP",
-        description: error.message,
+        description: error.message || "Failed to send verification code",
         variant: "destructive",
       });
     } finally {
@@ -67,11 +73,16 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('verify-otp', {
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { phoneNumber: phoneNumber.trim(), otp }
       });
 
       if (error) throw error;
+
+      // If we have a session in the response, set it
+      if (data && data.session) {
+        await supabase.auth.setSession(data.session);
+      }
 
       toast({
         title: "Verification successful",
@@ -81,7 +92,7 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
     } catch (error: any) {
       toast({
         title: "Verification failed",
-        description: error.message,
+        description: error.message || "Failed to verify code",
         variant: "destructive",
       });
     } finally {
@@ -90,8 +101,8 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-background to-secondary">
-      <div className="w-full max-w-md space-y-8 animate-fade-in">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-background to-secondary/30">
+      <div className="w-full max-w-md space-y-8 animate-fade-up">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight">
             {otpSent ? "Enter Verification Code" : "Welcome to Aditron"}
@@ -133,23 +144,36 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
             </div>
           ) : (
             <div className="space-y-4">
-              <InputOTP
-                value={otp}
-                onChange={(value) => setOtp(value)}
-                maxLength={6}
-                render={({ slots }) => (
-                  <InputOTPGroup className="gap-2">
-                    {slots.map((slot, idx) => (
-                      <InputOTPSlot
-                        key={idx}
-                        {...slot}
-                        index={idx}
-                        className="w-12 h-12 text-2xl"
-                      />
-                    ))}
-                  </InputOTPGroup>
-                )}
-              />
+              {devOtp && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-center">
+                  <p className="text-yellow-800 font-medium flex items-center justify-center">
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    Development OTP: <span className="font-bold ml-2">{devOtp}</span>
+                  </p>
+                  <p className="text-xs text-yellow-600 mt-1">This would be sent via SMS in production</p>
+                </div>
+              )}
+              
+              <div className="flex justify-center my-4">
+                <InputOTP
+                  value={otp}
+                  onChange={(value) => setOtp(value)}
+                  maxLength={6}
+                  render={({ slots }) => (
+                    <InputOTPGroup className="gap-2">
+                      {slots.map((slot, idx) => (
+                        <InputOTPSlot
+                          key={idx}
+                          {...slot}
+                          index={idx}
+                          className="w-12 h-12 text-2xl"
+                        />
+                      ))}
+                    </InputOTPGroup>
+                  )}
+                />
+              </div>
+              
               <Button
                 onClick={verifyOTP}
                 disabled={isLoading}
@@ -158,9 +182,26 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  "Verify"
+                  <div className="flex items-center justify-center">
+                    <Shield className="w-5 h-5 mr-2" />
+                    Verify
+                  </div>
                 )}
               </Button>
+              
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Didn't receive the code?{" "}
+                <button 
+                  className="text-primary hover:underline" 
+                  onClick={() => {
+                    setOtp("");
+                    setDevOtp(null);
+                    setOtpSent(false);
+                  }}
+                >
+                  Try again
+                </button>
+              </p>
             </div>
           )}
         </div>

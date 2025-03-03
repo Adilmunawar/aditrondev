@@ -30,27 +30,67 @@ serve(async (req) => {
     // For development, we'll just log the OTP
     console.log(`OTP for ${phoneNumber}: ${otp}`)
 
-    // Store the OTP in the database
-    const { error: updateError } = await supabaseClient
+    // Check if we have a user with this phone number already
+    const { data: existingUser, error: lookupError } = await supabaseClient
       .from('profiles')
-      .update({
-        phone_number: phoneNumber,
-        otp_secret: otp,
-        otp_valid_until: otpValidUntil.toISOString(),
-        phone_verified: false
-      })
-      .eq('id', req.headers.get('Authorization')?.split(' ')[1])
+      .select('id')
+      .eq('phone_number', phoneNumber)
+      .maybeSingle()
+    
+    if (lookupError) throw lookupError
 
-    if (updateError) throw updateError
+    if (existingUser) {
+      // Update existing user's OTP
+      const { error: updateError } = await supabaseClient
+        .from('profiles')
+        .update({
+          otp_secret: otp,
+          otp_valid_until: otpValidUntil.toISOString(),
+          phone_verified: false
+        })
+        .eq('phone_number', phoneNumber)
+
+      if (updateError) throw updateError
+    } else {
+      // Create a new anonymous user
+      const { data: { user }, error: signUpError } = await supabaseClient.auth.signUp({
+        email: `${phoneNumber.replace(/[^0-9]/g, '')}@phone.aditron.app`, // Create a fake email
+        password: crypto.randomUUID().toString(), // Random password since login will be via OTP
+        options: {
+          data: {
+            phone_number: phoneNumber,
+          }
+        }
+      })
+
+      if (signUpError) throw signUpError
+      
+      // Update the profile with OTP info
+      const { error: updateError } = await supabaseClient
+        .from('profiles')
+        .update({
+          phone_number: phoneNumber,
+          otp_secret: otp,
+          otp_valid_until: otpValidUntil.toISOString(),
+          phone_verified: false
+        })
+        .eq('id', user?.id)
+
+      if (updateError) throw updateError
+    }
 
     // In production, you would integrate with an SMS service here
     // await sendSMS(phoneNumber, `Your verification code is: ${otp}`)
 
     return new Response(
-      JSON.stringify({ message: 'OTP sent successfully' }),
+      JSON.stringify({ 
+        message: 'OTP sent successfully',
+        dev_otp: otp // Only for development, remove in production
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
+    console.error('Error in send-otp function:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
