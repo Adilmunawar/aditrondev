@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,7 +28,7 @@ serve(async (req) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
     const otpValidUntil = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
 
-    // For development, we'll just log the OTP
+    // For development, log the OTP
     console.log(`OTP for ${phoneNumber}: ${otp}`)
 
     // Check if we have a user with this phone number already
@@ -59,44 +59,54 @@ serve(async (req) => {
         throw updateError
       }
     } else {
-      // For new users, we'll create a temporary entry in a phone_verification table
-      // First check if the table exists, and create it if not
-      try {
-        const { data: tempUser, error: tempUserError } = await supabaseClient
-          .from('phone_verification')
-          .upsert({
-            phone_number: phoneNumber,
-            otp_secret: otp,
-            otp_valid_until: otpValidUntil.toISOString(),
-          }, { onConflict: 'phone_number' })
-          .select()
+      // For new users, create a temporary entry in a phone_verification table
+      // First check if the table exists
+      const { error: checkTableError } = await supabaseClient
+        .from('phone_verification')
+        .select('phone_number')
+        .limit(1)
+      
+      if (checkTableError) {
+        console.log('Phone verification table might not exist. Creating it.')
         
-        if (tempUserError) {
-          console.error('Error creating temporary user:', tempUserError)
-          throw tempUserError
-        }
-      } catch (error) {
-        console.error('Error with phone verification table, creating it:', error)
-        // This is likely because the table doesn't exist yet
+        // Create the phone_verification table
         const { error: createTableError } = await supabaseClient.rpc('create_phone_verification_table')
+        
         if (createTableError) {
           console.error('Error creating phone_verification table:', createTableError)
-          throw createTableError
+          
+          // Try to create the table directly with SQL
+          const { error: sqlError } = await supabaseClient.rpc('execute_sql', {
+            sql: `
+              CREATE TABLE IF NOT EXISTS public.phone_verification (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                phone_number TEXT UNIQUE NOT NULL,
+                otp_secret TEXT,
+                otp_valid_until TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT now()
+              );
+            `
+          })
+          
+          if (sqlError) {
+            console.error('Error creating table via SQL:', sqlError)
+            throw new Error('Could not create phone verification table')
+          }
         }
-        
-        // Try the upsert again
-        const { error: retryError } = await supabaseClient
-          .from('phone_verification')
-          .upsert({
-            phone_number: phoneNumber,
-            otp_secret: otp,
-            otp_valid_until: otpValidUntil.toISOString(),
-          }, { onConflict: 'phone_number' })
-        
-        if (retryError) {
-          console.error('Error creating temporary user on retry:', retryError)
-          throw retryError
-        }
+      }
+      
+      // Try the upsert
+      const { error: upsertError } = await supabaseClient
+        .from('phone_verification')
+        .upsert({
+          phone_number: phoneNumber,
+          otp_secret: otp,
+          otp_valid_until: otpValidUntil.toISOString(),
+        }, { onConflict: 'phone_number' })
+      
+      if (upsertError) {
+        console.error('Error creating temporary user record:', upsertError)
+        throw upsertError
       }
     }
 

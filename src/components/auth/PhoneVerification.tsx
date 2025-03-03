@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,10 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
         body: { phoneNumber: phoneNumber.trim() }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error invoking send-otp function:", error);
+        throw new Error(error.message || "Failed to send verification code");
+      }
 
       // For development only - store the OTP to display
       if (data && data.dev_otp) {
@@ -51,9 +53,10 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
         description: "Please check your phone for the verification code",
       });
     } catch (error: any) {
+      console.error("Error in sendOTP:", error);
       toast({
         title: "Error sending OTP",
-        description: error.message || "Failed to send verification code",
+        description: error.message || "Failed to send verification code. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -77,11 +80,24 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
         body: { phoneNumber: phoneNumber.trim(), otp }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error invoking verify-otp function:", error);
+        throw new Error(error.message || "Failed to verify code");
+      }
 
       // If we have a session in the response, set it
       if (data && data.session) {
         await supabase.auth.setSession(data.session);
+        
+        // Update any user profile information if needed
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ phone_verified: true })
+          .eq('id', data.session.user.id);
+          
+        if (profileError) {
+          console.error("Error updating profile:", profileError);
+        }
       }
 
       toast({
@@ -90,9 +106,10 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
       });
       onVerificationComplete();
     } catch (error: any) {
+      console.error("Error in verifyOTP:", error);
       toast({
         title: "Verification failed",
-        description: error.message || "Failed to verify code",
+        description: error.message || "Failed to verify code. Please try again.",
         variant: "destructive",
       });
     } finally {
