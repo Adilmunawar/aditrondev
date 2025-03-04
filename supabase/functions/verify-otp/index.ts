@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Normalize phone number to a consistent format
+const normalizePhoneNumber = (phoneNumber: string) => {
+  // Remove all non-digit characters except the leading +
+  let normalized = phoneNumber.replace(/[^\d+]/g, '');
+  
+  // Ensure number starts with '+'
+  if (!normalized.startsWith('+')) {
+    normalized = '+' + normalized;
+  }
+  
+  return normalized;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -27,7 +40,10 @@ Deno.serve(async (req) => {
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { phoneNumber, otp } = await req.json();
+    const requestData = await req.json();
+    const { phoneNumber, otp } = requestData;
+    
+    console.log("Received verification request:", requestData);
 
     if (!phoneNumber || !otp) {
       return new Response(
@@ -36,13 +52,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Verifying OTP for: ${phoneNumber}`);
+    // Normalize phone number
+    const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
+    console.log(`Verifying OTP for: ${normalizedPhoneNumber}`);
 
     // First check if the record exists
     const { data: verification, error: selectError } = await supabase
       .from('phone_verification')
       .select('*')
-      .eq('phone_number', phoneNumber)
+      .eq('phone_number', normalizedPhoneNumber)
       .single();
 
     if (selectError || !verification) {
@@ -75,7 +93,7 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabase
       .from('phone_verification')
       .update({ verified: true })
-      .eq('phone_number', phoneNumber);
+      .eq('phone_number', normalizedPhoneNumber);
 
     if (updateError) {
       console.error("Error updating verification status:", updateError);
@@ -89,7 +107,7 @@ Deno.serve(async (req) => {
     const { data: existingUser } = await supabase
       .from('profiles')
       .select('id')
-      .eq('phone_number', phoneNumber)
+      .eq('phone_number', normalizedPhoneNumber)
       .single();
 
     let userId, session;
@@ -147,7 +165,7 @@ Deno.serve(async (req) => {
       
       // Create auth user
       const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-        phone: phoneNumber,
+        phone: normalizedPhoneNumber,
         email: `${username}@example.com`, // placeholder email, not used
         email_confirm: true,
         phone_confirm: true,
@@ -168,7 +186,7 @@ Deno.serve(async (req) => {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
-          phone_number: phoneNumber,
+          phone_number: normalizedPhoneNumber,
           phone_verified: true 
         })
         .eq('id', userId);
@@ -194,7 +212,7 @@ Deno.serve(async (req) => {
       session = newSession;
     }
 
-    console.log(`Successfully verified OTP for: ${phoneNumber}`);
+    console.log(`Successfully verified OTP for: ${normalizedPhoneNumber}`);
     return new Response(
       JSON.stringify({ 
         success: true, 

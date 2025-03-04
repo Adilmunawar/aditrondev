@@ -45,7 +45,10 @@ Deno.serve(async (req) => {
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { phoneNumber } = await req.json();
+    const requestData = await req.json();
+    const { phoneNumber } = requestData;
+
+    console.log("Received request data:", requestData);
 
     if (!phoneNumber) {
       return new Response(

@@ -74,10 +74,15 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
 
     setIsLoading(true);
     setErrorMessage(null);
+    
     try {
+      console.log("Sending OTP to:", getFullPhoneNumber());
+      
       const { data, error } = await supabase.functions.invoke('send-otp', {
         body: { phoneNumber: getFullPhoneNumber() }
       });
+
+      console.log("OTP response:", data, error);
 
       if (error) {
         console.error("Error invoking send-otp function:", error);
@@ -88,6 +93,7 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
 
       // For development only - store the OTP to display
       if (data && data.dev_otp) {
+        console.log("OTP received:", data.dev_otp);
         setDevOtp(data.dev_otp);
       }
 
@@ -125,9 +131,13 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      console.log("Verifying OTP:", otp, "for phone:", getFullPhoneNumber());
+      
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { phoneNumber: getFullPhoneNumber(), otp }
       });
+
+      console.log("Verification response:", data, error);
 
       if (error) {
         console.error("Error invoking verify-otp function:", error);
