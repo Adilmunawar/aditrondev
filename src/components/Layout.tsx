@@ -68,12 +68,9 @@ export const Layout = ({ children }: LayoutProps) => {
           <h1 className="text-4xl font-bold">Welcome to Aditron</h1>
           <p className="text-lg text-muted-foreground">Please sign in to access the chat application.</p>
           <div className="flex flex-col space-y-3">
-            <Button asChild>
-              <Link to="/auth">Sign In / Sign Up</Link>
-            </Button>
-            <Button variant="outline" asChild className="flex items-center gap-2">
+            <Button asChild className="flex items-center gap-2">
               <Link to="/phone-login">
-                <Phone className="h-4 w-4" /> Sign In with Phone
+                <Phone className="h-4 w-4" /> Continue with Phone Number
               </Link>
             </Button>
           </div>
@@ -82,7 +79,6 @@ export const Layout = ({ children }: LayoutProps) => {
     );
   }
 
-  
   return (
     <div className="min-h-screen overflow-hidden bg-background">
       <div className="container mx-auto px-4 py-6 h-screen flex flex-col">

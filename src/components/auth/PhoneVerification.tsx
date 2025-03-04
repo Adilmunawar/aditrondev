@@ -11,6 +11,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
+import { CountrySelect, type Country } from "./CountrySelect";
 
 interface PhoneVerificationProps {
   onVerificationComplete: () => void;
@@ -26,6 +27,12 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
   const [verificationStep, setVerificationStep] = useState<'input' | 'verify' | 'success' | 'error'>('input');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorAttempts, setErrorAttempts] = useState(0);
+  const [selectedCountry, setSelectedCountry] = useState<Country>({ 
+    name: "Pakistan", 
+    code: "PK", 
+    dial_code: "+92", 
+    flag: "🇵🇰" 
+  });
 
   useEffect(() => {
     if (countdown > 0) {
@@ -38,6 +45,21 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove any dial code if user pastes a full number
+    let value = e.target.value;
+    if (value.startsWith(selectedCountry.dial_code)) {
+      value = value.substring(selectedCountry.dial_code.length);
+    }
+    // Only allow digits, no spaces or other characters
+    value = value.replace(/\D/g, '');
+    setPhoneNumber(value);
+  };
+
+  const getFullPhoneNumber = () => {
+    return `${selectedCountry.dial_code}${phoneNumber}`;
   };
 
   const sendOTP = async () => {
@@ -54,7 +76,7 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
     setErrorMessage(null);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { phoneNumber: phoneNumber.trim() }
+        body: { phoneNumber: getFullPhoneNumber() }
       });
 
       if (error) {
@@ -104,7 +126,7 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
     setErrorMessage(null);
     try {
       const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: { phoneNumber: phoneNumber.trim(), otp }
+        body: { phoneNumber: getFullPhoneNumber(), otp }
       });
 
       if (error) {
@@ -190,15 +212,23 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
                 </div>
                 
                 <div className="p-1 border border-input rounded-lg bg-secondary/30 shadow-inner hover:shadow-md transition-shadow">
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      type="tel"
-                      placeholder="+1234567890"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="pl-10 py-6 text-lg border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                    />
+                  <div className="grid grid-cols-4 gap-0">
+                    <div className="col-span-1 border-r border-input">
+                      <CountrySelect 
+                        selectedCountry={selectedCountry} 
+                        onSelect={setSelectedCountry} 
+                        className="h-full"
+                      />
+                    </div>
+                    <div className="col-span-3 relative">
+                      <Input
+                        type="tel"
+                        placeholder="3XX XXXXXXX"
+                        value={phoneNumber}
+                        onChange={handlePhoneNumberChange}
+                        className="pl-3 py-6 text-lg border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                    </div>
                   </div>
                 </div>
                 
@@ -235,7 +265,7 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
                   </div>
                   <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">Verify Your Phone</h1>
                   <p className="text-muted-foreground">
-                    We've sent a 6-digit code to <span className="font-medium text-foreground">{phoneNumber}</span>
+                    We've sent a 6-digit code to <span className="font-medium text-foreground">{getFullPhoneNumber()}</span>
                   </p>
                   {countdown > 0 && (
                     <p className="text-sm text-muted-foreground">

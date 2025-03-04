@@ -11,6 +11,19 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Normalize phone number to a consistent format
+const normalizePhoneNumber = (phoneNumber: string) => {
+  // Remove all non-digit characters except the leading +
+  let normalized = phoneNumber.replace(/[^\d+]/g, '');
+  
+  // Ensure number starts with '+'
+  if (!normalized.startsWith('+')) {
+    normalized = '+' + normalized;
+  }
+  
+  return normalized;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -41,7 +54,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Processing OTP request for: ${phoneNumber}`);
+    // Normalize phone number
+    const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
+    console.log(`Processing OTP request for: ${normalizedPhoneNumber}`);
 
     // First, ensure the phone_verification table exists by calling our function
     try {
@@ -68,7 +83,7 @@ Deno.serve(async (req) => {
         .from('phone_verification')
         .upsert([
           {
-            phone_number: phoneNumber,
+            phone_number: normalizedPhoneNumber,
             otp: otp,
             expires_at: expiresAt.toISOString(),
             verified: false
@@ -85,7 +100,7 @@ Deno.serve(async (req) => {
 
       // In production, you would send the OTP via SMS here
       // For development, we'll return the OTP in the response
-      console.log(`OTP for ${phoneNumber}: ${otp}`);
+      console.log(`OTP for ${normalizedPhoneNumber}: ${otp}`);
 
       return new Response(
         JSON.stringify({ 
