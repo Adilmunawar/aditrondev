@@ -1,123 +1,110 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+// Generate a random 6-digit code
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing environment variables');
-      throw new Error('Server configuration error');
-    }
-    
-    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+    // Initialize Supabase client with service role key
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const { phoneNumber } = await req.json();
+
     if (!phoneNumber) {
-      throw new Error('Phone number is required');
+      return new Response(
+        JSON.stringify({ error: "Phone number is required" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     console.log(`Processing OTP request for: ${phoneNumber}`);
 
-    // Generate a random 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpValidUntil = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-
-    // Store OTP in a safer way - directly use profiles table if possible
-    // First check if user exists with this phone number
-    const { data: existingProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('phone_number', phoneNumber)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error('Error checking profiles:', profileError);
-    }
-
-    if (existingProfile?.id) {
-      // Update the existing profile with new OTP
-      console.log(`Updating OTP for existing user: ${existingProfile.id}`);
-      const { error: updateError } = await supabaseAdmin
-        .from('profiles')
-        .update({
-          otp_secret: otp,
-          otp_valid_until: otpValidUntil.toISOString(),
-          phone_verified: false
-        })
-        .eq('id', existingProfile.id);
-
-      if (updateError) {
-        console.error('Error updating profile:', updateError);
-        throw new Error('Failed to update profile');
-      }
-    } else {
-      // Use a temporary table for non-registered users
-      // First ensure the phone_verification table exists
+    // Create the phone_verification table if it doesn't exist
+    try {
+      await supabase.rpc('create_phone_verification_table_if_not_exists');
+      console.log("Phone verification table exists or was created successfully");
+    } catch (tableError) {
+      // If the RPC doesn't exist, create the table directly
       try {
-        // Try to create the table if it doesn't exist
-        await supabaseAdmin.rpc('execute_sql', {
-          sql: `
-            CREATE TABLE IF NOT EXISTS public.phone_verification (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              phone_number TEXT UNIQUE NOT NULL,
-              otp_secret TEXT NOT NULL,
-              otp_valid_until TIMESTAMPTZ NOT NULL,
-              created_at TIMESTAMPTZ DEFAULT now()
-            );
-          `
-        });
+        console.log("Attempting to create phone_verification table directly");
+        const { error: createTableError } = await supabase.query(`
+          CREATE TABLE IF NOT EXISTS public.phone_verification (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            phone_number TEXT NOT NULL,
+            otp TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            verified BOOLEAN DEFAULT FALSE
+          );
+        `);
         
-        // Insert or update the phone verification record
-        const { error: upsertError } = await supabaseAdmin
-          .from('phone_verification')
-          .upsert({
-            phone_number: phoneNumber,
-            otp_secret: otp,
-            otp_valid_until: otpValidUntil.toISOString(),
-          }, { onConflict: 'phone_number' });
-          
-        if (upsertError) {
-          console.error('Error upserting verification record:', upsertError);
-          throw new Error('Failed to create verification record');
-        }
-      } catch (error) {
-        console.error('Error with verification table:', error);
-        throw new Error('Database operation failed');
+        if (createTableError) throw createTableError;
+      } catch (directCreateError) {
+        console.error("Failed to create phone verification table:", directCreateError);
+        return new Response(
+          JSON.stringify({ error: "Internal server error: Could not setup verification" }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
       }
     }
 
-    console.log(`OTP generated successfully for ${phoneNumber}: ${otp}`);
-    
-    // In production, integrate with Twilio or other SMS provider here
-    // For development, just return the OTP
+    // Generate new OTP
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+
+    // Store the OTP in the database
+    const { error: insertError } = await supabase
+      .from('phone_verification')
+      .upsert([
+        {
+          phone_number: phoneNumber,
+          otp: otp,
+          expires_at: expiresAt.toISOString(),
+          verified: false
+        }
+      ], { onConflict: 'phone_number' });
+
+    if (insertError) {
+      console.error("Error storing OTP:", insertError);
+      return new Response(
+        JSON.stringify({ error: "Failed to create verification code" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    // In production, you would send the OTP via SMS here
+    // For development, we'll return the OTP in the response
+    console.log(`OTP for ${phoneNumber}: ${otp}`);
+
     return new Response(
       JSON.stringify({ 
-        message: 'OTP sent successfully',
-        dev_otp: otp // Only include in development
+        success: true, 
+        message: "OTP sent successfully",
+        dev_otp: otp, // Remove this in production
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error in send-otp function:', error);
+    console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to send OTP" }),
-      { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      JSON.stringify({ error: "Internal server error" }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
