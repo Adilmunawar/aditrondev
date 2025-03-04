@@ -16,6 +16,14 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase environment variables");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -30,167 +38,171 @@ Deno.serve(async (req) => {
 
     console.log(`Verifying OTP for: ${phoneNumber}`);
 
-    // First check if the phone_verification table exists
-    try {
-      // Check if the phone_verification table exists
-      const { error: checkError } = await supabase
-        .from('phone_verification')
-        .select('id')
-        .limit(1);
-      
-      if (checkError) {
-        console.error("Phone verification table doesn't exist:", checkError);
-        return new Response(
-          JSON.stringify({ error: "Verification system not set up properly" }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-    } catch (tableError) {
-      console.error("Error checking table:", tableError);
+    // First check if the record exists
+    const { data: verification, error: selectError } = await supabase
+      .from('phone_verification')
+      .select('*')
+      .eq('phone_number', phoneNumber)
+      .single();
+
+    if (selectError || !verification) {
+      console.error("Error retrieving verification record:", selectError);
       return new Response(
-        JSON.stringify({ error: "Failed to access verification system" }),
+        JSON.stringify({ error: "Verification record not found. Please request a new OTP." }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    // Check if OTP has expired
+    if (new Date(verification.expires_at) < new Date()) {
+      console.log("OTP has expired");
+      return new Response(
+        JSON.stringify({ error: "Verification code has expired. Please request a new one." }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Check if OTP matches
+    if (verification.otp !== otp) {
+      console.log("Invalid OTP provided");
+      return new Response(
+        JSON.stringify({ error: "Invalid verification code. Please try again." }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Mark the OTP as verified
+    const { error: updateError } = await supabase
+      .from('phone_verification')
+      .update({ verified: true })
+      .eq('phone_number', phoneNumber);
+
+    if (updateError) {
+      console.error("Error updating verification status:", updateError);
+      return new Response(
+        JSON.stringify({ error: "Failed to verify phone number" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    // Check if OTP is valid
-    try {
-      const { data: verificationData, error: verificationError } = await supabase
-        .from('phone_verification')
-        .select('*')
-        .eq('phone_number', phoneNumber)
-        .eq('otp', otp)
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
+    // Look for existing user with this phone number
+    const { data: existingUser } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone_number', phoneNumber)
+      .single();
 
-      if (verificationError) {
-        console.error("Error verifying OTP:", verificationError);
-        return new Response(
-          JSON.stringify({ error: "Verification check failed" }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
+    let userId, session;
 
-      if (!verificationData) {
-        console.log("Invalid or expired OTP");
-        return new Response(
-          JSON.stringify({ error: "Invalid or expired verification code" }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-        );
-      }
-
-      // Mark OTP as verified
-      const { error: updateError } = await supabase
-        .from('phone_verification')
-        .update({ verified: true })
-        .eq('phone_number', phoneNumber);
-
-      if (updateError) {
-        console.error("Error updating verification status:", updateError);
-        return new Response(
-          JSON.stringify({ error: "Failed to complete verification" }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-
-      // Check if user exists
-      let userId;
-      const { data: existingUser, error: userError } = await supabase
+    if (existingUser) {
+      userId = existingUser.id;
+      
+      // Update existing user
+      await supabase
         .from('profiles')
-        .select('id')
-        .eq('phone_number', phoneNumber)
-        .maybeSingle();
-
-      if (userError) {
-        console.error("Error checking for existing user:", userError);
-        return new Response(
-          JSON.stringify({ error: "Failed to verify user identity" }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-
-      // If user exists, get their ID, otherwise create a new user
-      if (existingUser) {
-        userId = existingUser.id;
-        console.log(`Existing user found: ${userId}`);
-      } else {
-        // Create a new user
-        try {
-          const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
-            phone: phoneNumber,
-            phone_confirm: true,
-            user_metadata: { phone_verified: true }
-          });
-
-          if (createError || !authUser?.user) {
-            console.error("Error creating user:", createError);
-            return new Response(
-              JSON.stringify({ error: "Failed to create user account" }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-            );
-          }
-
-          userId = authUser.user.id;
-          console.log(`New user created: ${userId}`);
-
-          // Create profile for new user
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{ 
-              id: userId, 
-              phone_number: phoneNumber,
-              phone_verified: true
-            }]);
-
-          if (profileError) {
-            console.error("Error creating profile:", profileError);
-            // Continue anyway as the auth user was created
-          }
-        } catch (createUserError) {
-          console.error("User creation error:", createUserError);
-          return new Response(
-            JSON.stringify({ error: "Failed to create user account", details: createUserError.message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-          );
-        }
-      }
-
-      // Create a session for the user
-      try {
-        const { data: sessionData, error: sessionError } = await supabase.auth.admin.createSession({
+        .update({ 
+          phone_verified: true,
+          last_seen: new Date().toISOString()
+        })
+        .eq('id', userId);
+        
+      // Get or create session for existing user
+      const { data: sessionData, error: sessionError } = await supabase.auth.admin.getUserById(userId);
+      
+      if (sessionError || !sessionData.user) {
+        console.error("Error getting user:", sessionError);
+        // Try to create a session anyway
+        const { data: newSession, error: signInError } = await supabase.auth.admin.createSession({
           user_id: userId
         });
-
-        if (sessionError) {
-          console.error("Error creating session:", sessionError);
+        
+        if (signInError) {
+          console.error("Error creating session:", signInError);
           return new Response(
-            JSON.stringify({ error: "Failed to create login session" }),
+            JSON.stringify({ error: "Authentication failed" }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
           );
         }
-
+        
+        session = newSession;
+      } else {
+        // Create a session for the existing user
+        const { data: newSession, error: signInError } = await supabase.auth.admin.createSession({
+          user_id: userId
+        });
+        
+        if (signInError) {
+          console.error("Error creating session:", signInError);
+          return new Response(
+            JSON.stringify({ error: "Authentication failed" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          );
+        }
+        
+        session = newSession;
+      }
+    } else {
+      // Create a new user with this phone number
+      const username = `user${Math.floor(Math.random() * 1000000)}`;
+      
+      // Create auth user
+      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+        phone: phoneNumber,
+        email: `${username}@example.com`, // placeholder email, not used
+        email_confirm: true,
+        phone_confirm: true,
+        user_metadata: { username }
+      });
+      
+      if (userError || !userData.user) {
+        console.error("Error creating user:", userError);
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            session: sessionData,
-            message: "Phone number verified successfully" 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } catch (sessionError) {
-        console.error("Session creation error:", sessionError);
-        return new Response(
-          JSON.stringify({ error: "Failed to create login session", details: sessionError.message }),
+          JSON.stringify({ error: "Failed to create user account" }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         );
       }
-    } catch (otpError) {
-      console.error("OTP verification error:", otpError);
-      return new Response(
-        JSON.stringify({ error: "Verification process failed", details: otpError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      
+      userId = userData.user.id;
+      
+      // Update the profile directly
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          phone_number: phoneNumber,
+          phone_verified: true 
+        })
+        .eq('id', userId);
+      
+      if (profileError) {
+        console.error("Error updating profile:", profileError);
+        // Continue anyway as the trigger might have created the profile
+      }
+      
+      // Create a session for the new user
+      const { data: newSession, error: sessionError } = await supabase.auth.admin.createSession({
+        user_id: userId
+      });
+      
+      if (sessionError) {
+        console.error("Error creating session:", sessionError);
+        return new Response(
+          JSON.stringify({ error: "Authentication failed" }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+      
+      session = newSession;
     }
+
+    console.log(`Successfully verified OTP for: ${phoneNumber}`);
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: "Phone number verified successfully",
+        session
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
   } catch (error) {
     console.error("Unexpected error:", error);
     return new Response(

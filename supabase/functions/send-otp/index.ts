@@ -21,6 +21,14 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase environment variables");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -35,69 +43,19 @@ Deno.serve(async (req) => {
 
     console.log(`Processing OTP request for: ${phoneNumber}`);
 
-    // First check if the table exists
+    // First, ensure the phone_verification table exists by calling our function
     try {
-      // Check if the phone_verification table exists
-      const { data: tableExists, error: checkError } = await supabase
-        .from('phone_verification')
-        .select('id')
-        .limit(1);
+      const { error: createTableError } = await supabase.rpc('create_phone_verification_table');
       
-      if (checkError) {
-        // Table probably doesn't exist, try to create it
-        console.log("Table check failed, attempting to create phone_verification table");
-        
-        // Use SQL query to create the table directly
-        const { error: createTableError } = await supabase.rpc('create_phone_verification_table');
-        
-        if (createTableError) {
-          console.error("Failed to create phone verification table via RPC:", createTableError);
-          
-          // Try direct SQL query as fallback
-          const { error: directCreateError } = await supabase
-            .from('phone_verification')
-            .insert([{ 
-              phone_number: 'test', 
-              otp: 'test', 
-              expires_at: new Date().toISOString(),
-              verified: false 
-            }])
-            .select();
-          
-          if (directCreateError && directCreateError.code !== '23505') {
-            console.error("Direct table check failed:", directCreateError);
-            
-            // As a last resort, try to execute raw SQL
-            try {
-              await supabase.query(`
-                CREATE TABLE IF NOT EXISTS public.phone_verification (
-                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                  phone_number TEXT NOT NULL,
-                  otp TEXT NOT NULL,
-                  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-                  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                  verified BOOLEAN DEFAULT FALSE,
-                  UNIQUE(phone_number)
-                );
-              `);
-              console.log("Created phone_verification table via raw SQL");
-            } catch (sqlError) {
-              console.error("Raw SQL table creation failed:", sqlError);
-              throw new Error("Could not create phone verification table");
-            }
-          }
-        } else {
-          console.log("Created phone_verification table via RPC");
-        }
+      if (createTableError) {
+        console.error("Error creating phone verification table:", createTableError);
+        // Continue anyway as the table might already exist
       } else {
-        console.log("Phone verification table exists");
+        console.log("Phone verification table created or confirmed");
       }
     } catch (tableError) {
-      console.error("Error checking/creating table:", tableError);
-      return new Response(
-        JSON.stringify({ error: "Failed to setup verification system" }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      console.error("Error calling create_phone_verification_table function:", tableError);
+      // Continue anyway as the table might already exist
     }
 
     // Generate new OTP
@@ -120,7 +78,7 @@ Deno.serve(async (req) => {
       if (insertError) {
         console.error("Error storing OTP:", insertError);
         return new Response(
-          JSON.stringify({ error: "Failed to create verification code" }),
+          JSON.stringify({ error: "Failed to create verification code", details: insertError.message }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         );
       }
@@ -135,12 +93,12 @@ Deno.serve(async (req) => {
           message: "OTP sent successfully",
           dev_otp: otp, // Remove this in production
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     } catch (dbError) {
       console.error("Database operation error:", dbError);
       return new Response(
-        JSON.stringify({ error: "Database operation failed" }),
+        JSON.stringify({ error: "Database operation failed", details: dbError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }

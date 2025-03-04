@@ -475,6 +475,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_phone_verification_table: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       verify_otp: {
         Args: {
           phone_number_input: string
