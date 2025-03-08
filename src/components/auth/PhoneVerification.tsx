@@ -82,8 +82,6 @@ export const PhoneVerification = ({ onVerificationComplete }: PhoneVerificationP
         body: { phoneNumber: getFullPhoneNumber() }
       });
 
-      console.log("OTP response:", data, error);
-
       if (error) {
         console.error("Error invoking send-otp function:", error);
         setErrorMessage(error.message || "Failed to send verification code");
