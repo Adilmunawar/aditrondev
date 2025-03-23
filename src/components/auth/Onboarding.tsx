@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,74 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [avatar, setAvatar] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+
+  // Load initial user data if available
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("username, full_name, status, avatar_url")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (profile && !error) {
+          setUsername(profile.username || "");
+          setFullName(profile.full_name || "");
+          setBio(profile.status || "");
+          if (profile.avatar_url) {
+            setAvatarPreview(profile.avatar_url);
+          }
+        }
+      }
+      setInitialDataLoaded(true);
+    };
+
+    fetchUserData();
+  }, []);
+
+  const checkUsernameAvailability = async (usernameToCheck: string) => {
+    if (!initialDataLoaded) return;
+    
+    if (!usernameToCheck.trim()) {
+      setUsernameError("Username is required");
+      return false;
+    }
+    
+    // Get current user to exempt them from username check (for update case)
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return false;
+    
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .eq("username", usernameToCheck)
+      .neq("id", session.user.id) // Don't count current user's username as a duplicate
+      .maybeSingle();
+    
+    if (data) {
+      setUsernameError("This username is already taken");
+      return false;
+    } else {
+      setUsernameError(null);
+      return true;
+    }
+  };
+
+  const handleUsernameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUsername = e.target.value;
+    setUsername(newUsername);
+    
+    // Only check availability if we have a non-empty username
+    if (newUsername.trim()) {
+      await checkUsernameAvailability(newUsername);
+    } else {
+      setUsernameError(null);
+    }
+  };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,6 +109,18 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Final validation before submitting
+    if (!username.trim()) {
+      setUsernameError("Username is required");
+      return;
+    }
+    
+    if (!await checkUsernameAvailability(username)) {
+      // Error already set by checkUsernameAvailability
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -49,6 +129,19 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
 
       let avatarUrl = null;
       if (avatar) {
+        // Create the avatars bucket if it doesn't exist
+        try {
+          const { error: bucketError } = await supabase.storage.getBucket('avatars');
+          if (bucketError) {
+            // Bucket might not exist, try to create it
+            await supabase.storage.createBucket('avatars', {
+              public: true
+            });
+          }
+        } catch (error) {
+          console.error("Error checking/creating bucket:", error);
+        }
+
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("avatars")
           .upload(`${user.id}/${Date.now()}.png`, avatar);
@@ -68,7 +161,7 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
           username,
           full_name: fullName,
           status: bio,
-          avatar_url: avatarUrl,
+          avatar_url: avatarUrl || undefined,
           onboarding_completed: true,
         })
         .eq("id", user.id);
@@ -138,10 +231,13 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
               <Input
                 placeholder="Username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="py-6 text-lg"
+                onChange={handleUsernameChange}
+                className={`py-6 text-lg ${usernameError ? 'border-red-500' : ''}`}
                 required
               />
+              {usernameError && (
+                <p className="text-sm text-red-500 mt-1">{usernameError}</p>
+              )}
             </div>
             <div>
               <Input
@@ -164,7 +260,7 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
 
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !!usernameError}
             className="w-full py-6 text-lg"
           >
             {isLoading ? (

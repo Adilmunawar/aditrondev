@@ -15,4 +15,5 @@ export interface Profile {
   profile_visibility: 'everyone' | 'contacts' | 'nobody';
   is_online: boolean;
   last_seen: string;
+  otp_secret?: string;
 }

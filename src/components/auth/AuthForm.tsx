@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [authType, setAuthType] = useState<"signin" | "signup">("signin");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Generate a secret key for new user registrations
@@ -73,6 +75,8 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
       return;
     }
     
+    // Clear any previous username errors
+    setUsernameError(null);
     setIsLoading(true);
     
     try {
@@ -85,7 +89,7 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
           .single();
         
         if (error) {
-          throw new Error("Username not found or invalid");
+          throw new Error("Username not found. Please check your username or sign up for a new account.");
         }
         
         // Show OTP input for verification
@@ -99,6 +103,7 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
           .maybeSingle();
         
         if (data) {
+          setUsernameError("Username already exists. Please choose another one.");
           throw new Error("Username already exists. Please choose another one.");
         }
         
@@ -235,6 +240,7 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
     setShowOtpInput(false);
     setShowSecretKey(false);
     setOtp("");
+    setUsernameError(null);
   };
 
   const handleAuthTypeChange = (type: "signin" | "signup") => {
@@ -289,11 +295,14 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
                       placeholder="Enter your username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="pl-10"
+                      className={`pl-10 ${usernameError ? 'border-red-500' : ''}`}
                       disabled={isLoading}
                     />
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
+                  {usernameError && (
+                    <p className="text-sm text-red-500 mt-1">{usernameError}</p>
+                  )}
                 </div>
 
                 <div className="flex justify-end">
