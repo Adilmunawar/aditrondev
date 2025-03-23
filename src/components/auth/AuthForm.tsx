@@ -1,74 +1,108 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, Github, Key, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Key, Eye, EyeOff, User, Shield } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { TOTP } from "otpauth";
+import QRCode from "./QRCode";
 
 interface AuthFormProps {
   onAuthComplete: () => void;
 }
 
 export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [showSecretKey, setShowSecretKey] = useState(false);
+  const [secretKey, setSecretKey] = useState("");
+  const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [authType, setAuthType] = useState<"signin" | "signup">("signin");
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  // Generate a secret key for new user registrations
+  useEffect(() => {
+    if (authType === "signup" && !secretKey) {
+      const newSecret = generateSecret();
+      setSecretKey(newSecret);
+    }
+  }, [authType]);
 
+  const generateSecret = () => {
+    // Generate a random base32 encoded secret
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let secret = '';
+    for (let i = 0; i < 32; i++) {
+      secret += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return secret;
+  };
+
+  const validateOtp = (otp: string, secret: string): boolean => {
     try {
-      if (!email || !password) {
-        toast({
-          title: "Missing fields",
-          description: "Please fill in all required fields",
-          variant: "destructive",
-        });
-        return;
-      }
+      const totp = new TOTP({
+        issuer: "Aditron",
+        label: username,
+        algorithm: "SHA1",
+        digits: 6,
+        period: 30,
+        secret
+      });
+      
+      return totp.validate({ token: otp, window: 1 }) !== null;
+    } catch (error) {
+      console.error("OTP validation error:", error);
+      return false;
+    }
+  };
 
-      let response;
+  const handleInitialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!username.trim()) {
+      toast({
+        title: "Username required",
+        description: "Please enter your username to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
       if (authType === "signin") {
-        response = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-      } else {
-        response = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-          },
-        });
-      }
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      if (authType === "signin" && response.data.session) {
-        toast({
-          title: "Success",
-          description: "You are now signed in",
-        });
-        onAuthComplete();
-      } else if (authType === "signup") {
-        toast({
-          title: "Account created",
-          description: "Your account has been created successfully",
-        });
-        // For signup, depending on Supabase settings, the user might need to confirm email
-        // If autoconfirm is enabled, we can proceed to onboarding
-        if (response.data.session) {
-          onAuthComplete();
+        // For sign in, check if the username exists
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("otp_secret")
+          .eq("username", username)
+          .single();
+        
+        if (error) {
+          throw new Error("Username not found or invalid");
         }
+        
+        // Show OTP input for verification
+        setShowOtpInput(true);
+      } else {
+        // For signup, check if username is available
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("username", username)
+          .maybeSingle();
+        
+        if (data) {
+          throw new Error("Username already exists. Please choose another one.");
+        }
+        
+        // Show secret key for the user to save
+        setShowSecretKey(true);
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
@@ -82,52 +116,135 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
     }
   };
 
-  const handleGoogleAuth = async () => {
+  const handleSignIn = async () => {
     setIsLoading(true);
+    
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-
-      if (error) {
-        throw error;
+      // Get the user's secret key from the profiles table
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("otp_secret, id")
+        .eq("username", username)
+        .single();
+      
+      if (error || !data || !data.otp_secret) {
+        throw new Error("Could not retrieve account information");
       }
-    } catch (error: any) {
-      console.error("Google auth error:", error);
+      
+      // Validate the OTP
+      if (!validateOtp(otp, data.otp_secret)) {
+        throw new Error("Invalid authentication code. Please try again.");
+      }
+      
+      // If valid, create a new session by signing in with a custom token
+      // We'll use a workaround with the existing supabase auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: `${username}@temporary.auth`,
+        password: data.otp_secret.substring(0, 20)
+      });
+      
+      if (authError) {
+        // If account doesn't exist yet, create it first
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: `${username}@temporary.auth`,
+          password: data.otp_secret.substring(0, 20)
+        });
+        
+        if (signUpError) {
+          throw new Error("Failed to authenticate: " + signUpError.message);
+        }
+      }
+      
       toast({
-        title: "Google authentication failed",
-        description: error.message || "An error occurred during Google authentication",
+        title: "Success",
+        description: "You've been authenticated successfully",
+      });
+      
+      onAuthComplete();
+    } catch (error: any) {
+      console.error("Authentication error:", error);
+      toast({
+        title: "Authentication failed",
+        description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGitHubAuth = async () => {
+  const handleSignUp = async () => {
     setIsLoading(true);
+    
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-
-      if (error) {
-        throw error;
+      if (!validateOtp(otp, secretKey)) {
+        throw new Error("Invalid authentication code. Please verify your authenticator app is properly set up.");
       }
-    } catch (error: any) {
-      console.error("GitHub auth error:", error);
+      
+      // Create a new auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: `${username}@temporary.auth`,
+        password: secretKey.substring(0, 20)
+      });
+      
+      if (authError) {
+        throw new Error("Failed to create account: " + authError.message);
+      }
+      
+      // Save the user profile with the TOTP secret
+      const userId = authData.user?.id;
+      if (!userId) {
+        throw new Error("Failed to create user account");
+      }
+      
+      // Update the profile with the username and TOTP secret
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          username: username,
+          otp_secret: secretKey
+        })
+        .eq("id", userId);
+      
+      if (profileError) {
+        throw new Error("Failed to save profile information: " + profileError.message);
+      }
+      
       toast({
-        title: "GitHub authentication failed",
-        description: error.message || "An error occurred during GitHub authentication",
+        title: "Account created",
+        description: "Your account has been created successfully. You can now log in.",
+      });
+      
+      onAuthComplete();
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Registration failed",
+        description: error.message || "An error occurred during registration",
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerifyOtp = () => {
+    if (authType === "signin") {
+      handleSignIn();
+    } else {
+      handleSignUp();
+    }
+  };
+
+  const resetForm = () => {
+    setShowOtpInput(false);
+    setShowSecretKey(false);
+    setOtp("");
+  };
+
+  const handleAuthTypeChange = (type: "signin" | "signup") => {
+    setAuthType(type);
+    resetForm();
   };
 
   return (
@@ -148,127 +265,179 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
           <div className="relative z-10 space-y-6">
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
-                Welcome Back
+                {showOtpInput 
+                  ? "Enter Authentication Code" 
+                  : showSecretKey 
+                    ? "Save Your Secret Key" 
+                    : authType === "signin" ? "Welcome Back" : "Create Account"}
               </h1>
-              <p className="text-muted-foreground">Sign in to your account or create a new one</p>
+              <p className="text-muted-foreground">
+                {showOtpInput 
+                  ? "Enter the code from your authenticator app" 
+                  : showSecretKey 
+                    ? "Scan this QR code with your authenticator app"
+                    : authType === "signin" 
+                      ? "Sign in to your account" 
+                      : "Register a new account"}
+              </p>
             </div>
 
-            <Tabs defaultValue="email" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="email">Email</TabsTrigger>
-                <TabsTrigger value="social">Social</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="email" className="space-y-4">
-                <form onSubmit={handleEmailAuth} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10"
-                        disabled={isLoading}
-                      />
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    </div>
+            {!showOtpInput && !showSecretKey ? (
+              // Initial form (username input)
+              <form onSubmit={handleInitialSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <div className="relative">
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="Enter your username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="pl-10"
+                      disabled={isLoading}
+                    />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-10 pr-10"
-                        disabled={isLoading}
-                      />
-                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                </div>
 
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="text-sm"
-                      onClick={() => setAuthType(authType === "signin" ? "signup" : "signin")}
-                    >
-                      {authType === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
-                    </Button>
-                  </div>
-                  
+                <div className="flex justify-end">
                   <Button
-                    type="submit"
-                    className="w-full py-6 relative overflow-hidden group"
+                    type="button"
+                    variant="link"
+                    className="text-sm"
+                    onClick={() => handleAuthTypeChange(authType === "signin" ? "signup" : "signin")}
+                  >
+                    {authType === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
+                  </Button>
+                </div>
+                
+                <Button
+                  type="submit"
+                  className="w-full py-6 relative overflow-hidden group"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      {authType === "signin" ? "Continue" : "Register"}
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 opacity-0 group-hover:opacity-100 -z-10 transition-opacity"></div>
+                    </>
+                  )}
+                </Button>
+              </form>
+            ) : showSecretKey ? (
+              // Secret key display (for signup)
+              <div className="space-y-6">
+                <div className="p-4 bg-background rounded-lg">
+                  <QRCode 
+                    value={`otpauth://totp/Aditron:${username}?secret=${secretKey}&issuer=Aditron&algorithm=SHA1&digits=6&period=30`}
+                    size={200}
+                    className="mx-auto"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Secret Key</Label>
+                  <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-md text-center font-mono text-sm break-all">
+                    {secretKey}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Save this secret key in a secure place. You will need it if you lose access to your authenticator app.
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Verification Code</Label>
+                  <div className="flex justify-center">
+                    <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={resetForm}
                     disabled={isLoading}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 relative overflow-hidden group"
+                    onClick={handleVerifyOtp}
+                    disabled={isLoading || otp.length !== 6}
                   >
                     {isLoading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <>
-                        {authType === "signin" ? "Sign In" : "Create Account"}
+                        Verify & Complete
                         <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 opacity-0 group-hover:opacity-100 -z-10 transition-opacity"></div>
                       </>
                     )}
                   </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="social" className="space-y-4">
-                <div className="grid gap-4">
-                  <Button
-                    variant="outline"
-                    className="w-full h-12 text-base font-medium"
-                    onClick={handleGoogleAuth}
-                    disabled={isLoading}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24">
-                      <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" fill="currentColor"/>
-                    </svg>
-                    Continue with Google
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    className="w-full h-12 text-base font-medium"
-                    onClick={handleGitHubAuth}
-                    disabled={isLoading}
-                  >
-                    <Github className="mr-2 h-5 w-5" />
-                    Continue with GitHub
-                  </Button>
+                </div>
+              </div>
+            ) : (
+              // OTP input (for signin)
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Authentication Code</Label>
+                  <div className="flex justify-center">
+                    <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
                 </div>
                 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-muted-foreground/20"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      More options coming soon
-                    </span>
-                  </div>
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={resetForm}
+                    disabled={isLoading}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 relative overflow-hidden group"
+                    onClick={handleVerifyOtp}
+                    disabled={isLoading || otp.length !== 6}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        Verify
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 opacity-0 group-hover:opacity-100 -z-10 transition-opacity"></div>
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            )}
           </div>
         </div>
         
