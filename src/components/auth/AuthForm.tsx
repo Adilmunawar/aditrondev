@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -182,33 +181,28 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
         throw new Error("Invalid authentication code. Please verify your authenticator app is properly set up.");
       }
       
-      // First create a user profile without relying on auth
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          username: username,
-          otp_secret: secretKey
-        })
-        .select("id")
-        .single();
-      
-      if (profileError) {
-        if (profileError.code === "23505") { // Unique violation code
-          throw new Error("Username already exists. Please choose a different username.");
-        }
-        throw new Error("Failed to create profile: " + profileError.message);
-      }
-      
-      // Now we can try to create the auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // First create the auth user
+      const { data: userData, error: userError } = await supabase.auth.signUp({
         email: `${username}@temporary.auth`,
         password: secretKey.substring(0, 20)
       });
       
-      if (authError) {
-        // Clean up the profile if auth fails
-        await supabase.from("profiles").delete().eq("username", username);
-        throw new Error("Failed to create account: " + authError.message);
+      if (userError || !userData.user) {
+        throw new Error("Failed to create account: " + userError?.message || "User creation failed");
+      }
+      
+      // Then update the profile with our secret
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          username: username,
+          otp_secret: secretKey
+        })
+        .eq("id", userData.user.id);
+      
+      if (profileError) {
+        // Try to clean up auth user if profile update fails
+        throw new Error("Failed to complete registration: " + profileError.message);
       }
       
       toast({
