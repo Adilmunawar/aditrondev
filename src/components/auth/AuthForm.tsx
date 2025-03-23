@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [authType, setAuthType] = useState<"signin" | "signup">("signin");
+  const navigate = useNavigate();
 
   // Generate a secret key for new user registrations
   useEffect(() => {
@@ -136,15 +138,14 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
         throw new Error("Invalid authentication code. Please try again.");
       }
       
-      // If valid, create a new session by signing in with a custom token
-      // We'll use a workaround with the existing supabase auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      // If valid, create a session by directly setting the session in Supabase
+      const { data: session, error: sessionError } = await supabase.auth.signInWithPassword({
         email: `${username}@temporary.auth`,
         password: data.otp_secret.substring(0, 20)
       });
       
-      if (authError) {
-        // If account doesn't exist yet, create it first
+      if (sessionError) {
+        // If user doesn't exist yet in auth system, create it
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: `${username}@temporary.auth`,
           password: data.otp_secret.substring(0, 20)
@@ -181,33 +182,33 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
         throw new Error("Invalid authentication code. Please verify your authenticator app is properly set up.");
       }
       
-      // Create a new auth user
+      // First create a user profile without relying on auth
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          username: username,
+          otp_secret: secretKey
+        })
+        .select("id")
+        .single();
+      
+      if (profileError) {
+        if (profileError.code === "23505") { // Unique violation code
+          throw new Error("Username already exists. Please choose a different username.");
+        }
+        throw new Error("Failed to create profile: " + profileError.message);
+      }
+      
+      // Now we can try to create the auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: `${username}@temporary.auth`,
         password: secretKey.substring(0, 20)
       });
       
       if (authError) {
+        // Clean up the profile if auth fails
+        await supabase.from("profiles").delete().eq("username", username);
         throw new Error("Failed to create account: " + authError.message);
-      }
-      
-      // Save the user profile with the TOTP secret
-      const userId = authData.user?.id;
-      if (!userId) {
-        throw new Error("Failed to create user account");
-      }
-      
-      // Update the profile with the username and TOTP secret
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          username: username,
-          otp_secret: secretKey
-        })
-        .eq("id", userId);
-      
-      if (profileError) {
-        throw new Error("Failed to save profile information: " + profileError.message);
       }
       
       toast({
