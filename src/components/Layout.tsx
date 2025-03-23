@@ -7,7 +7,7 @@ import { ContactList } from "@/components/ContactList";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { GroupCreation } from "@/components/GroupCreation";
 import { Button } from "@/components/ui/button";
-import { Phone, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 type Panel = "chat" | "contacts" | "profile" | "group";
 
@@ -70,8 +70,8 @@ export const Layout = ({ children }: LayoutProps) => {
           <p className="text-lg text-muted-foreground">Please sign in to access the chat application.</p>
           <div className="flex flex-col space-y-3">
             <Button asChild className="flex items-center gap-2">
-              <Link to="/phone-login">
-                <Phone className="h-4 w-4" /> Continue with Phone Number
+              <Link to="/auth">
+                Sign In / Create Account
               </Link>
             </Button>
           </div>

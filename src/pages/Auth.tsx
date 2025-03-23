@@ -2,14 +2,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { PhoneVerification } from "@/components/auth/PhoneVerification";
-import { Onboarding } from "@/components/auth/Onboarding";
 import { PermissionsRequest } from "@/components/auth/PermissionsRequest";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { Onboarding } from "@/components/auth/Onboarding";
 
-type AuthStep = "phone" | "onboarding" | "permissions";
+type AuthStep = "auth" | "onboarding" | "permissions";
 
 const Auth = () => {
-  const [currentStep, setCurrentStep] = useState<AuthStep>("phone");
+  const [currentStep, setCurrentStep] = useState<AuthStep>("auth");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +24,7 @@ const Auth = () => {
 
         if (profile?.onboarding_completed) {
           navigate("/");
-        } else if (profile?.phone_verified) {
+        } else if (profile) {
           setCurrentStep("onboarding");
         }
       }
@@ -33,7 +33,7 @@ const Auth = () => {
     checkSession();
   }, [navigate]);
 
-  const handleVerificationComplete = () => {
+  const handleAuthComplete = () => {
     setCurrentStep("onboarding");
   };
 
@@ -47,8 +47,8 @@ const Auth = () => {
 
   return (
     <div className="relative overflow-hidden">
-      {currentStep === "phone" && (
-        <PhoneVerification onVerificationComplete={handleVerificationComplete} />
+      {currentStep === "auth" && (
+        <AuthForm onAuthComplete={handleAuthComplete} />
       )}
       {currentStep === "onboarding" && (
         <Onboarding onComplete={handleOnboardingComplete} />
