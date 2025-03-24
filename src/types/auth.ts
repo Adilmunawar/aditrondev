@@ -20,4 +20,6 @@ export interface Profile {
   phone_verified?: boolean;
   otp_secret?: string;
   otp_valid_until?: string;
+  gender?: 'male' | 'female' | 'other' | null;
+  email?: string | null;
 }

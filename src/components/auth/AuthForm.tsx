@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 
 interface AuthFormProps {
-  onAuthComplete: () => void;
+  onAuthComplete: (userId: string, isNewUser: boolean) => void;
 }
 
 export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
@@ -69,16 +70,15 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
           // Check if user has completed onboarding
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("onboarding_completed")
+            .select("onboarding_completed, otp_secret")
             .eq("id", data.user.id)
             .single();
             
           if (profileError) {
             console.error("Error fetching profile:", profileError);
-            // Continue anyway as we'll redirect to onboarding if needed
           }
           
-          onAuthComplete();
+          onAuthComplete(data.user.id, false);
         }
       } else {
         // Handle signup
@@ -97,7 +97,7 @@ export const AuthForm = ({ onAuthComplete }: AuthFormProps) => {
         if (data?.user) {
           // Wait a moment for the trigger to create the profile
           setTimeout(async () => {
-            onAuthComplete();
+            onAuthComplete(data.user.id, true);
           }, 1000);
         }
       }

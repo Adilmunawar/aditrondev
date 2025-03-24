@@ -5,17 +5,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { PermissionsRequest } from "@/components/auth/PermissionsRequest";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { Onboarding } from "@/components/auth/Onboarding";
+import { TwoFactorAuth } from "@/components/auth/TwoFactorAuth";
 
-type AuthStep = "auth" | "onboarding" | "permissions";
+type AuthStep = "auth" | "twoFactor" | "onboarding" | "permissions";
 
 const Auth = () => {
   const [currentStep, setCurrentStep] = useState<AuthStep>("auth");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
+        setUserId(session.user.id);
+        
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
@@ -25,7 +30,13 @@ const Auth = () => {
         if (profile?.onboarding_completed) {
           navigate("/");
         } else if (profile) {
-          setCurrentStep("onboarding");
+          // If user has an OTP secret but hasn't completed onboarding
+          if (profile.otp_secret) {
+            setIsNewUser(false);
+            setCurrentStep("twoFactor");
+          } else {
+            setCurrentStep("onboarding");
+          }
         }
       }
     };
@@ -33,7 +44,13 @@ const Auth = () => {
     checkSession();
   }, [navigate]);
 
-  const handleAuthComplete = () => {
+  const handleAuthComplete = (uid: string, newUser: boolean) => {
+    setUserId(uid);
+    setIsNewUser(newUser);
+    setCurrentStep("twoFactor");
+  };
+
+  const handleTwoFactorComplete = () => {
     setCurrentStep("onboarding");
   };
 
@@ -49,6 +66,14 @@ const Auth = () => {
     <div className="relative overflow-hidden">
       {currentStep === "auth" && (
         <AuthForm onAuthComplete={handleAuthComplete} />
+      )}
+      {currentStep === "twoFactor" && userId && (
+        <TwoFactorAuth 
+          userId={userId} 
+          isNewUser={isNewUser} 
+          onComplete={handleTwoFactorComplete}
+          onBack={() => setCurrentStep("auth")}
+        />
       )}
       {currentStep === "onboarding" && (
         <Onboarding onComplete={handleOnboardingComplete} />

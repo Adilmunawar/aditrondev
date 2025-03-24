@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { Camera, Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -15,6 +17,9 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "other" | "">("");
   const [avatar, setAvatar] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -26,9 +31,11 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
     const fetchUserData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
+        setEmail(session.user.email || "");
+        
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("username, full_name, status, avatar_url")
+          .select("username, full_name, status, avatar_url, phone_number, gender")
           .eq("id", session.user.id)
           .single();
         
@@ -36,6 +43,8 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
           setUsername(profile.username || "");
           setFullName(profile.full_name || "");
           setBio(profile.status || "");
+          setPhoneNumber(profile.phone_number || "");
+          setGender(profile.gender || "");
           if (profile.avatar_url) {
             setAvatarPreview(profile.avatar_url);
           }
@@ -121,6 +130,14 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
       return;
     }
     
+    if (!fullName.trim()) {
+      toast({
+        title: "Full name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -162,6 +179,9 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
           full_name: fullName,
           status: bio,
           avatar_url: avatarUrl || undefined,
+          phone_number: phoneNumber || undefined,
+          gender: gender || undefined,
+          email: email || undefined,
           onboarding_completed: true,
         })
         .eq("id", user.id);
@@ -247,6 +267,46 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
                 className="py-6 text-lg"
                 required
               />
+            </div>
+            <div>
+              <Input
+                placeholder="Phone Number"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="py-6 text-lg"
+              />
+            </div>
+            <div>
+              <Input
+                placeholder="Email Address"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="py-6 text-lg"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Gender</Label>
+              <RadioGroup 
+                value={gender} 
+                onValueChange={(value) => setGender(value as "male" | "female" | "other")}
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="male" id="male" />
+                  <Label htmlFor="male">Male</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="female" id="female" />
+                  <Label htmlFor="female">Female</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="other" id="other" />
+                  <Label htmlFor="other">Other</Label>
+                </div>
+              </RadioGroup>
             </div>
             <div>
               <Textarea
