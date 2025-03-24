@@ -15,5 +15,9 @@ export interface Profile {
   profile_visibility: 'everyone' | 'contacts' | 'nobody';
   is_online: boolean;
   last_seen: string;
+  onboarding_completed?: boolean;
+  phone_number?: string | null;
+  phone_verified?: boolean;
   otp_secret?: string;
+  otp_valid_until?: string;
 }
