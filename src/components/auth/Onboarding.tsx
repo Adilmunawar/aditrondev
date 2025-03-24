@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
         try {
           const { data, error } = await supabase
             .from("profiles")
-            .select("username, full_name, status, avatar_url, phone_number, gender")
+            .select("username, full_name, status, avatar_url, phone_number, gender, email")
             .eq("id", session.user.id)
             .single();
             
@@ -47,6 +48,7 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
             setFullName(data.full_name || "");
             setBio(data.status || "");
             setPhoneNumber(data.phone_number || "");
+            setEmail(data.email || session.user.email || "");
             if (data.gender) {
               setGender(data.gender as "male" | "female" | "other");
             }
@@ -154,30 +156,37 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
 
       let avatarUrl = null;
       if (avatar) {
-        // Create the avatars bucket if it doesn't exist
         try {
+          // Check if the avatars bucket exists
           const { error: bucketError } = await supabase.storage.getBucket('avatars');
+          
           if (bucketError) {
-            // Bucket might not exist, try to create it
+            // Create bucket if it doesn't exist
             await supabase.storage.createBucket('avatars', {
               public: true
             });
           }
+          
+          // Upload avatar
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("avatars")
+            .upload(`${user.id}/${Date.now()}.png`, avatar);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(uploadData.path);
+
+          avatarUrl = publicUrl;
         } catch (error) {
-          console.error("Error checking/creating bucket:", error);
+          console.error("Error uploading avatar:", error);
+          toast({
+            title: "Avatar upload failed",
+            description: "We couldn't upload your avatar, but will continue with profile setup.",
+            variant: "destructive",
+          });
         }
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(`${user.id}/${Date.now()}.png`, avatar);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("avatars")
-          .getPublicUrl(uploadData.path);
-
-        avatarUrl = publicUrl;
       }
 
       const { error: updateError } = await supabase
