@@ -5,11 +5,13 @@ import Auth from "@/pages/Auth";
 import PhoneLogin from "@/pages/PhoneLogin";
 import Index from "@/pages/Index";
 import NotFound from "@/pages/NotFound";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./integrations/supabase/client";
 import "./App.css";
 
 function App() {
+  const [bucketsInitialized, setBucketsInitialized] = useState(false);
+
   // Create storage bucket on app initialization if it doesn't exist
   useEffect(() => {
     const createAvatarsBucket = async () => {
@@ -24,7 +26,10 @@ function App() {
             console.error("Error creating avatars bucket:", createError);
           } else {
             console.log("Avatars bucket created successfully");
+            setBucketsInitialized(true);
           }
+        } else {
+          setBucketsInitialized(true);
         }
       } catch (error) {
         console.error("Error checking/creating bucket:", error);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Camera, Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Profile } from "@/types/auth";
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -33,21 +33,29 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
       if (session?.user) {
         setEmail(session.user.email || "");
         
-        const { data: profile, error } = await supabase
-          .from("profiles")
-          .select("username, full_name, status, avatar_url, phone_number, gender")
-          .eq("id", session.user.id)
-          .single();
-        
-        if (profile && !error) {
-          setUsername(profile.username || "");
-          setFullName(profile.full_name || "");
-          setBio(profile.status || "");
-          setPhoneNumber(profile.phone_number || "");
-          setGender(profile.gender || "");
-          if (profile.avatar_url) {
-            setAvatarPreview(profile.avatar_url);
+        try {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("username, full_name, status, avatar_url, phone_number, gender")
+            .eq("id", session.user.id)
+            .single();
+            
+          if (error) {
+            console.error("Error fetching profile:", error);
+          } else if (data) {
+            setUsername(data.username || "");
+            setFullName(data.full_name || "");
+            setBio(data.status || "");
+            setPhoneNumber(data.phone_number || "");
+            if (data.gender) {
+              setGender(data.gender as "male" | "female" | "other");
+            }
+            if (data.avatar_url) {
+              setAvatarPreview(data.avatar_url);
+            }
           }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
         }
       }
       setInitialDataLoaded(true);
@@ -57,7 +65,7 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
   }, []);
 
   const checkUsernameAvailability = async (usernameToCheck: string) => {
-    if (!initialDataLoaded) return;
+    if (!initialDataLoaded) return true;
     
     if (!usernameToCheck.trim()) {
       setUsernameError("Username is required");

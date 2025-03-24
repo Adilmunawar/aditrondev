@@ -27,7 +27,7 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
       try {
         if (isNewUser) {
           // Generate a new OTP secret for new users
-          const secret = OTPAuth.Secret.generate();
+          const secret = new OTPAuth.Secret();
           setOtpSecret(secret.base32);
           
           // Create OTP URI for QR code
@@ -153,8 +153,8 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
               onChange={setOtpValue}
               render={({ slots }) => (
                 <InputOTPGroup>
-                  {slots.map((slot, index) => (
-                    <InputOTPSlot key={index} {...slot} />
+                  {slots.map((slot, i) => (
+                    <InputOTPSlot key={i} {...slot} index={i} />
                   ))}
                 </InputOTPGroup>
               )}
@@ -188,5 +188,4 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
         </div>
       </div>
     </div>
-  );
-};
+  
