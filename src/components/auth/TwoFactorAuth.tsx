@@ -188,4 +188,5 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
         </div>
       </div>
     </div>
-  
+  );
+};
