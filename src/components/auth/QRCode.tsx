@@ -31,7 +31,7 @@ export default function QRCode({ value, size = 200, className = '' }: QRCodeProp
           margin: 1,
           color: {
             dark: '#3b82f6', // Blue color for QR code
-            light: '#1e293b'  // Dark background
+            light: '#000000'  // Black background
           }
         });
       } catch (error) {

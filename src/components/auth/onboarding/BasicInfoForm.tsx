@@ -42,7 +42,7 @@ export const BasicInfoForm = ({
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className={`py-6 text-lg bg-gray-800 border-gray-700 text-white ${usernameError ? 'border-red-500' : ''}`}
+          className={`py-6 text-lg bg-gray-900 border-gray-700 text-white ${usernameError ? 'border-red-500' : ''}`}
           required
         />
         {usernameError && (
@@ -54,7 +54,7 @@ export const BasicInfoForm = ({
           placeholder="Full Name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          className="py-6 text-lg bg-gray-800 border-gray-700 text-white"
+          className="py-6 text-lg bg-gray-900 border-gray-700 text-white"
           required
         />
       </div>
@@ -64,7 +64,7 @@ export const BasicInfoForm = ({
           type="tel"
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
-          className="py-6 text-lg bg-gray-800 border-gray-700 text-white"
+          className="py-6 text-lg bg-gray-900 border-gray-700 text-white"
         />
       </div>
       <div>
@@ -73,7 +73,7 @@ export const BasicInfoForm = ({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="py-6 text-lg bg-gray-800 border-gray-700 text-white"
+          className="py-6 text-lg bg-gray-900 border-gray-700 text-white"
           required
         />
       </div>
@@ -103,7 +103,7 @@ export const BasicInfoForm = ({
           placeholder="Bio"
           value={bio}
           onChange={(e) => setBio(e.target.value)}
-          className="min-h-[100px] text-lg bg-gray-800 border-gray-700 text-white"
+          className="min-h-[100px] text-lg bg-gray-900 border-gray-700 text-white"
         />
       </div>
     </div>

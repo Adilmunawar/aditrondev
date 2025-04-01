@@ -74,25 +74,39 @@ const Auth = () => {
       if (existingUser) {
         // If username exists, sign in as that user
         setUserId(existingUser.id);
+        
+        // Create a session for existing user
+        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+          email: `${username}@example.com`,
+          password: "password123" // Note: This is a placeholder, in a real app you'd verify identity differently
+        });
+        
+        if (sessionError) {
+          // If can't sign in, create anonymous auth
+          const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+            email: `${username}@example.com`,
+            password: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
+          });
+          
+          if (signUpError) throw signUpError;
+        }
+        
         setCurrentStep("twoFactor");
       } else {
         // Create new user with anonymous auth
         const { data: { user }, error: signUpError } = await supabase.auth.signUp({
           email: `${username}@example.com`,
-          password: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
+          password: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10),
+          options: {
+            data: {
+              username
+            }
+          }
         });
         
         if (signUpError) throw signUpError;
         
         if (user) {
-          // Set the username in the profile
-          const { error: updateError } = await supabase
-            .from("profiles")
-            .update({ username })
-            .eq("id", user.id);
-            
-          if (updateError) throw updateError;
-          
           setUserId(user.id);
           // Skip directly to two-factor setup
           setCurrentStep("twoFactor");
