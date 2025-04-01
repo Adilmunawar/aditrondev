@@ -8,7 +8,6 @@ import { BasicInfoForm } from "./onboarding/BasicInfoForm";
 import { checkUsernameAvailability } from "./onboarding/UsernameValidator";
 import { useProfileData } from "./onboarding/useProfileData";
 import { updateProfile } from "./onboarding/ProfileUpdater";
-import { Profile } from "@/types/auth";
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -40,8 +39,7 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
   
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleUsernameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newUsername = e.target.value;
+  const handleUsernameChange = async (newUsername: string) => {
     setUsername(newUsername);
     
     // Only check availability if we have a non-empty username
