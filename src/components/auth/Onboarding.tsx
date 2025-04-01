@@ -110,11 +110,11 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary p-4">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
       <div className="w-full max-w-md space-y-8 animate-fade-in">
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight">Set Up Your Profile</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold tracking-tight text-white">Set Up Your Profile</h1>
+          <p className="text-gray-400">
             Let's personalize your experience
           </p>
         </div>
@@ -147,7 +147,7 @@ export const Onboarding = ({ onComplete }: OnboardingProps) => {
           <Button
             type="submit"
             disabled={isLoading || !!usernameError}
-            className="w-full py-6 text-lg"
+            className="w-full py-6 text-lg bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

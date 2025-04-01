@@ -25,13 +25,13 @@ export default function QRCode({ value, size = 200, className = '' }: QRCodeProp
           context.clearRect(0, 0, canvas.width, canvas.height);
         }
         
-        // Generate new QR code
+        // Generate new QR code with blue color for better visibility on dark background
         QRCodeLib.toCanvas(canvas, value, {
           width: size,
           margin: 1,
           color: {
-            dark: '#000000',
-            light: '#ffffff'
+            dark: '#3b82f6', // Blue color for QR code
+            light: '#1e293b'  // Dark background
           }
         });
       } catch (error) {
@@ -47,7 +47,7 @@ export default function QRCode({ value, size = 200, className = '' }: QRCodeProp
       ref={canvasRef} 
       width={size} 
       height={size} 
-      className={className}
+      className={`rounded-md ${className}`}
     />
   );
 }

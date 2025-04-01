@@ -3,16 +3,20 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionsRequest } from "@/components/auth/PermissionsRequest";
-import { AuthForm } from "@/components/auth/AuthForm";
 import { Onboarding } from "@/components/auth/Onboarding";
 import { TwoFactorAuth } from "@/components/auth/TwoFactorAuth";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
-type AuthStep = "auth" | "twoFactor" | "onboarding" | "permissions";
+type AuthStep = "username" | "twoFactor" | "onboarding" | "permissions";
 
 const Auth = () => {
-  const [currentStep, setCurrentStep] = useState<AuthStep>("auth");
+  const [currentStep, setCurrentStep] = useState<AuthStep>("username");
+  const [username, setUsername] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
-  const [isNewUser, setIsNewUser] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,7 +36,6 @@ const Auth = () => {
         } else if (profile) {
           // If user has an OTP secret but hasn't completed onboarding
           if (profile.otp_secret) {
-            setIsNewUser(false);
             setCurrentStep("twoFactor");
           } else {
             setCurrentStep("onboarding");
@@ -44,10 +47,67 @@ const Auth = () => {
     checkSession();
   }, [navigate]);
 
-  const handleAuthComplete = (uid: string, newUser: boolean) => {
-    setUserId(uid);
-    setIsNewUser(newUser);
-    setCurrentStep("twoFactor");
+  const handleUsernameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!username.trim()) {
+      toast({
+        title: "Username required",
+        description: "Please enter a username to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Check if username already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", username)
+        .maybeSingle();
+        
+      if (checkError) throw checkError;
+      
+      if (existingUser) {
+        // If username exists, sign in as that user
+        setUserId(existingUser.id);
+        setCurrentStep("twoFactor");
+      } else {
+        // Create new user with anonymous auth
+        const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+          email: `${username}@example.com`,
+          password: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
+        });
+        
+        if (signUpError) throw signUpError;
+        
+        if (user) {
+          // Set the username in the profile
+          const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ username })
+            .eq("id", user.id);
+            
+          if (updateError) throw updateError;
+          
+          setUserId(user.id);
+          // Skip directly to two-factor setup
+          setCurrentStep("twoFactor");
+        }
+      }
+    } catch (error: any) {
+      console.error("Authentication error:", error);
+      toast({
+        title: "Authentication failed",
+        description: error.message || "An error occurred during authentication",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTwoFactorComplete = () => {
@@ -63,21 +123,54 @@ const Auth = () => {
   };
 
   return (
-    <div className="relative overflow-hidden">
-      {currentStep === "auth" && (
-        <AuthForm onAuthComplete={handleAuthComplete} />
+    <div className="min-h-screen bg-black text-white">
+      {currentStep === "username" && (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-md space-y-8 bg-gray-900 p-8 rounded-lg shadow-lg animate-fade-in">
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-bold">Aditron</h1>
+              <p className="text-gray-400">Enter your username to continue</p>
+            </div>
+            
+            <form onSubmit={handleUsernameSubmit} className="space-y-6">
+              <Input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
+                className="py-6 text-lg bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                autoFocus
+              />
+              
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-6 text-lg bg-blue-600 hover:bg-blue-700"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            </form>
+          </div>
+        </div>
       )}
+
       {currentStep === "twoFactor" && userId && (
         <TwoFactorAuth 
           userId={userId} 
-          isNewUser={isNewUser} 
+          isNewUser={true} 
           onComplete={handleTwoFactorComplete}
-          onBack={() => setCurrentStep("auth")}
+          onBack={() => setCurrentStep("username")}
         />
       )}
+
       {currentStep === "onboarding" && (
         <Onboarding onComplete={handleOnboardingComplete} />
       )}
+
       {currentStep === "permissions" && (
         <PermissionsRequest onComplete={handlePermissionsComplete} />
       )}

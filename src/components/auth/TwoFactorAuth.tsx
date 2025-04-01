@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import QRCode from "./QRCode";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import * as OTPAuth from "otpauth";
@@ -122,13 +122,13 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary p-4">
-      <div className="w-full max-w-md space-y-8 p-8 bg-card rounded-lg shadow-lg animate-fade-in">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
+      <div className="w-full max-w-md space-y-8 p-8 bg-gray-900 rounded-lg shadow-lg animate-fade-in">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold text-white">
             {isNewUser ? "Set Up Two-Factor Authentication" : "Two-Factor Authentication"}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-400">
             {isNewUser 
               ? "Scan the QR code with an authenticator app and enter the verification code"
               : "Enter the verification code from your authenticator app"}
@@ -137,24 +137,29 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
 
         <div className="space-y-6">
           {isNewUser && otpUri && (
-            <div className="flex flex-col items-center justify-center p-4 bg-background rounded-lg">
+            <div className="flex flex-col items-center justify-center p-4 bg-gray-800 rounded-lg">
               <QRCode value={otpUri} size={200} className="mb-4" />
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-sm text-gray-400 text-center">
                 Scan this QR code with Google Authenticator, Authy, or any other TOTP app
               </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Verification Code</label>
+            <label className="text-sm font-medium text-gray-300">Verification Code</label>
             <InputOTP
               maxLength={6}
               value={otpValue}
               onChange={setOtpValue}
               render={({ slots }) => (
-                <InputOTPGroup>
+                <InputOTPGroup className="gap-2">
                   {slots.map((slot, i) => (
-                    <InputOTPSlot key={i} {...slot} index={i} />
+                    <InputOTPSlot 
+                      key={i} 
+                      {...slot} 
+                      index={i} 
+                      className="w-12 h-14 text-xl bg-gray-800 border-gray-700 text-white"
+                    />
                   ))}
                 </InputOTPGroup>
               )}
@@ -168,7 +173,7 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
             <Button
               onClick={verifyOTP}
               disabled={isLoading || otpValue.length !== 6}
-              className="w-full"
+              className="w-full py-6 bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -180,8 +185,9 @@ export const TwoFactorAuth = ({ userId, isNewUser, onComplete, onBack }: TwoFact
               type="button"
               variant="outline"
               onClick={onBack}
-              className="w-full"
+              className="w-full py-6 bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800"
             >
+              <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
           </div>
