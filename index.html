@@ -12,12 +12,90 @@
     <meta property="og:url" content="https://github.com/Adilmunawar/aditrondev" />
     <link rel="stylesheet" href="/styles/main.css" />
     <link rel="icon" href="/favicon.ico" />
+    <style>
+      /* Dark Metallic Theme */
+      :root {
+        --background-color: #1e1e2f;
+        --text-color: #e0e0e0;
+        --accent-color: #ff9500;
+        --metallic-color: #3a3a4f;
+        --button-hover-color: #ffb347;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+      }
+
+      #root {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        text-align: center;
+      }
+
+      .theme-toggle-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background-color: var(--accent-color);
+        color: var(--text-color);
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+
+      .theme-toggle-btn:hover {
+        background-color: var(--button-hover-color);
+      }
+
+      .container {
+        background-color: var(--metallic-color);
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      }
+
+      h1 {
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin: 0;
+      }
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <button class="theme-toggle-btn" onclick="toggleTheme()">Switch Theme</button>
+    <div id="root">
+      <div class="container">
+        <h1>Welcome to Aditron Messenger</h1>
+        <p>Next generation social chatting application</p>
+      </div>
+    </div>
+
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      function toggleTheme() {
+        const root = document.documentElement;
+        if (root.style.getPropertyValue('--background-color') === '#1e1e2f') {
+          root.style.setProperty('--background-color', '#ffffff');
+          root.style.setProperty('--text-color', '#000000');
+          root.style.setProperty('--metallic-color', '#f0f0f0');
+        } else {
+          root.style.setProperty('--background-color', '#1e1e2f');
+          root.style.setProperty('--text-color', '#e0e0e0');
+          root.style.setProperty('--metallic-color', '#3a3a4f');
+        }
+      }
+    </script>
   </body>
 </html>
