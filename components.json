@@ -1,20 +1,65 @@
 {
+  // Schema for validation and UI integration
   "$schema": "https://ui.shadcn.com/schema.json",
+
+  // Project style configuration
   "style": "default",
   "rsc": false,
   "tsx": true,
+
+  // TailwindCSS configurations
   "tailwind": {
     "config": "tailwind.config.ts",
     "css": "src/index.css",
     "baseColor": "slate",
     "cssVariables": true,
-    "prefix": ""
+    "prefix": "aditron-" // Added a custom prefix to avoid class name collisions
   },
+
+  // Aliases for cleaner imports and better organization
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
     "ui": "@/components/ui",
     "lib": "@/lib",
-    "hooks": "@/hooks"
+    "hooks": "@/hooks",
+    "services": "@/services", // Added for better separation of service-related code
+    "context": "@/context",   // Added for centralized context management
+    "constants": "@/constants" // Added for better management of app-wide constants
+  },
+
+  // Added configurations for accessibility and performance
+  "accessibility": {
+    "ariaAttributes": true, // Enforce ARIA attributes for better accessibility
+    "keyboardNavigation": true // Enable keyboard navigation support
+  },
+
+  // Added configurations for debugging and environment management
+  "debug": {
+    "enableLogging": true, // Enable detailed logging for debugging
+    "logLevel": "info"     // Set log level to 'info', can be 'debug', 'warn', 'error'
+  },
+
+  // Project-specific metadata for better documentation and integration
+  "metadata": {
+    "projectName": "AditronDev",
+    "author": "Adil Munawar",
+    "description": "A social chatting application with TypeScript and TailwindCSS",
+    "version": "1.0.0",
+    "repository": "https://github.com/Adilmunawar/aditrondev"
+  },
+
+  // Added experimental features for future-proofing
+  "experimental": {
+    "darkMode": true, // Enable dark mode support
+    "theming": {
+      "enableCustomThemes": true, // Allow custom themes
+      "defaultTheme": "light",    // Set default theme to 'light'
+      "availableThemes": ["light", "dark", "system"] // List of available themes
+    },
+    "animations": {
+      "enableTransitions": true, // Enable smooth transitions
+      "defaultDuration": "300ms" // Default transition duration
+    }
   }
 }
