@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { User, Search, Plus, UserPlus, MoreVertical, Phone, Video } from "lucide-react";
 import { Button } from "./ui/button";
@@ -14,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-
 interface Contact {
   id: number;
   name: string;
@@ -135,7 +133,6 @@ export const ContactList = () => {
           <TabsTrigger value="online">Online</TabsTrigger>
           <TabsTrigger value="recent">Recent</TabsTrigger>
         </TabsList>
-        
         <TabsContent value="all" className="flex-1 p-0 m-0">
           <ScrollArea className="h-full">
             {filteredContacts.length > 0 ? (
