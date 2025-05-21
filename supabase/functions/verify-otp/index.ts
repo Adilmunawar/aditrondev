@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Normalize phone number to a consistent format
+// Normalize phone number to a consistent format added by Adil Munawar
 const normalizePhoneNumber = (phoneNumber: string) => {
   // Remove all non-digit characters except the leading +
   let normalized = phoneNumber.replace(/[^\d+]/g, '');
