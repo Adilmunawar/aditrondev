@@ -8,7 +8,7 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Normalize phone number to a consistent format
+// Normalize phone number to a consistent format comments by adil munawar
 const normalizePhoneNumber = (phoneNumber: string) => {
   // Remove all non-digit characters except the leading +
   let normalized = phoneNumber.replace(/[^\d+]/g, '');
