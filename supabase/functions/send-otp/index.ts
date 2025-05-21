@@ -1,11 +1,9 @@
-
-
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-
-// Generate a random 6-digit code
+// Generate a random 6-digit code added by adil
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
