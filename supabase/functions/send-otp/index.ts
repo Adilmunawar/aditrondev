@@ -13,11 +13,10 @@ const normalizePhoneNumber = (phoneNumber: string) => {
   // Remove all non-digit characters except the leading +
   let normalized = phoneNumber.replace(/[^\d+]/g, '');
   
-  // Ensure number starts with '+'
+  // Ensure number that starts with '+'
   if (!normalized.startsWith('+')) {
     normalized = '+' + normalized;
   }
-  
   return normalized;
 }
 
