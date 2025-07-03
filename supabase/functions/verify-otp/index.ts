@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
+import * as crypto from 'crypto';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -159,7 +160,8 @@ Deno.serve(async (req) => {
       }
     } else {
       // Create a new user with this phone number
-      const username = `user${Math.floor(Math.random() * 1000000)}`;
+      const randomBytes = crypto.randomBytes(3).toString('hex'); // Generate 3 random bytes and convert to hex
+      const username = `user${randomBytes}`;
       
       // Create auth user
       const { data: userData, error: userError } = await supabase.auth.admin.createUser({
