@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import crypto from "crypto";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionsRequest } from "@/components/auth/PermissionsRequest";
@@ -85,7 +86,7 @@ const Auth = () => {
           // If can't sign in, create anonymous auth
           const { data: { user }, error: signUpError } = await supabase.auth.signUp({
             email: `${username}@example.com`,
-            password: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
+            password: crypto.randomBytes(16).toString('base64').slice(0, 16)
           });
           
           if (signUpError) throw signUpError;
@@ -96,7 +97,7 @@ const Auth = () => {
         // Create new user with anonymous auth
         const { data: { user }, error: signUpError } = await supabase.auth.signUp({
           email: `${username}@example.com`,
-          password: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10),
+          password: crypto.randomBytes(16).toString('base64').slice(0, 16),
           options: {
             data: {
               username
